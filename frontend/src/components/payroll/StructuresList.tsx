@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, ArrowLeft, Plus } from 'lucide-react';
-import StatusBadge from './StatusBadge';
 import type { SalaryStructure } from './mockData';
 
 interface Props {
@@ -27,12 +26,17 @@ export default function StructuresList({
       {/* Header */}
       <div className="flex items-center justify-between px-8 py-4 bg-white border-b border-border">
         <div className="flex items-center gap-4 flex-1">
-          <button onClick={() => navigate('/payroll/payruns')} className="p-2 hover:bg-surface rounded-full text-brandAccent transition-colors group">
+          <button
+            onClick={() => navigate('/payroll/payruns')}
+            className="p-2 hover:bg-surface rounded-full text-brandAccent transition-colors group"
+          >
             <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
           </button>
-          <div>
+          <div className="flex items-center gap-2.5">
             <h2 className="text-xl font-display font-semibold text-navy">Salary Structures</h2>
-            <p className="text-xs text-mutedText mt-0.5">Manage payroll structures and the rules attached to them.</p>
+            <span className="px-2 py-0.5 text-[11px] font-medium bg-surface text-slate border border-border rounded-full">
+              Flow view
+            </span>
           </div>
 
           <div className="relative w-64 ml-4 group">
@@ -49,7 +53,7 @@ export default function StructuresList({
 
         <button
           onClick={() => navigate('/payroll/structures/new')}
-          className="px-4 py-1.5 bg-accent text-white text-sm font-medium rounded-md hover:bg-[#4a42d8] hover:shadow-md transition-all duration-200 active:scale-95 transform flex items-center gap-1.5"
+          className="px-4 py-1.5 bg-accent text-white text-sm font-medium rounded-md hover:bg-[#4a42d8] hover:shadow-md transition-all duration-200 active:scale-95 transform flex items-center gap-1.5 shadow-sm"
         >
           <Plus size={16} /> New
         </button>
@@ -62,9 +66,9 @@ export default function StructuresList({
             <thead>
               <tr className="border-b border-border bg-surface/50">
                 <th className="py-3 px-4 text-xs font-semibold text-slate uppercase tracking-wider">Structure Name</th>
-                <th className="py-3 px-4 text-xs font-semibold text-slate uppercase tracking-wider">Rule Count</th>
+                <th className="py-3 px-4 text-xs font-semibold text-slate uppercase tracking-wider">Rules</th>
                 <th className="py-3 px-4 text-xs font-semibold text-slate uppercase tracking-wider">Employees</th>
-                <th className="py-3 px-4 text-xs font-semibold text-slate uppercase tracking-wider">Status</th>
+                <th className="py-3 px-4 text-xs font-semibold text-slate uppercase tracking-wider">Active</th>
               </tr>
             </thead>
             <tbody>
@@ -75,7 +79,9 @@ export default function StructuresList({
                       <Search className="w-8 h-8 text-slate/30" />
                       <span>No structures found</span>
                       {search && (
-                        <button onClick={() => setSearch('')} className="text-accent text-xs hover:underline">Clear search</button>
+                        <button onClick={() => setSearch('')} className="text-accent text-xs hover:underline">
+                          Clear search
+                        </button>
                       )}
                     </div>
                   </td>
@@ -92,13 +98,25 @@ export default function StructuresList({
                     <td className="py-3 px-4 text-sm text-slate">{ruleCount(s)} rules</td>
                     <td className="py-3 px-4 text-sm text-slate">{s.employeeCount} employees</td>
                     <td className="py-3 px-4 text-sm">
-                      <StatusBadge status={s.active ? 'Active' : 'Inactive'} />
+                      <span className={s.active ? 'text-emerald-600 font-medium' : 'text-slate font-medium'}>
+                        {s.active ? 'Active' : 'Inactive'}
+                      </span>
                     </td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Footnotes */}
+        <div className="mt-4 px-2 space-y-1">
+          <p className="text-xs text-mutedText italic">
+            * Structures group salary rules; rules define the ordered salary computation used by a payslip. Both require List and Form views.
+          </p>
+          <p className="text-xs text-mutedText italic">
+            * The Salary Structure selected on a Payrun determines which set of salary rules will compute pay.
+          </p>
         </div>
       </div>
     </div>

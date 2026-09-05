@@ -128,11 +128,16 @@ export default function PayrollPage() {
           }
         />
 
-        <Route path="rules" element={<RulesList rules={rules} />} />
+        <Route path="rules" element={<RulesList rules={rules} structures={structures} />} />
         <Route
           path="rules/:id"
           element={
-            <RuleForm rules={rules} onSave={handleSaveRule} onDelete={handleDeleteRule} />
+            <RuleForm
+              rules={rules}
+              structures={structures}
+              onSave={handleSaveRule}
+              onDelete={handleDeleteRule}
+            />
           }
         />
 

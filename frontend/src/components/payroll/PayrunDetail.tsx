@@ -8,7 +8,6 @@ import {
   Send,
   AlertTriangle,
   Search,
-  ChevronRight,
   Printer,
 } from 'lucide-react';
 import StatusBadge from './StatusBadge';
@@ -241,12 +240,12 @@ export default function PayrunDetail({ payruns, payslips, onUpdatePayrun }: Prop
               <thead>
                 <tr className="bg-surface/70 border-b border-border text-[11px] font-semibold text-slate uppercase tracking-wider">
                   <th className="py-3 px-4">Employee</th>
-                  <th className="py-3 px-4">Status</th>
-                  <th className="py-3 px-4">Warnings</th>
+                  <th className="py-3 px-4 text-center">Worked</th>
                   <th className="py-3 px-4 text-right">Basic</th>
                   <th className="py-3 px-4 text-right">Gross</th>
-                  <th className="py-3 px-4 text-right">Net Salary</th>
-                  <th className="py-3 px-4 text-center">Actions</th>
+                  <th className="py-3 px-4 text-right">Alt (Net)</th>
+                  <th className="py-3 px-4 text-center">Status</th>
+                  <th className="py-3 px-4 text-center">PDF</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -264,20 +263,18 @@ export default function PayrunDetail({ payruns, payslips, onUpdatePayrun }: Prop
                       className="hover:bg-surface/50 cursor-pointer transition-colors group"
                     >
                       <td className="py-3 px-4 font-medium text-navy group-hover:text-accent transition-colors">
-                        {ps.employeeName}
+                        <div>
+                          <span>{ps.employeeName}</span>
+                          {ps.warnings.length > 0 && (
+                            <div className="flex items-center gap-1 text-amber-700 text-[10px] mt-0.5">
+                              <AlertTriangle size={11} className="text-amber-500 shrink-0" />
+                              <span>{ps.warnings.join(', ')}</span>
+                            </div>
+                          )}
+                        </div>
                       </td>
-                      <td className="py-3 px-4">
-                        <StatusBadge status={ps.status} />
-                      </td>
-                      <td className="py-3 px-4">
-                        {ps.warnings.length > 0 ? (
-                          <div className="flex items-center gap-1 text-amber-700 font-medium">
-                            <AlertTriangle size={13} className="text-amber-500 shrink-0" />
-                            <span>{ps.warnings.join(', ')}</span>
-                          </div>
-                        ) : (
-                          <span className="text-slate/40">—</span>
-                        )}
+                      <td className="py-3 px-4 text-center font-mono text-slate">
+                        {ps.workedDays || 22}
                       </td>
                       <td className="py-3 px-4 text-right font-mono text-slate">
                         {formatCurrency(ps.basic)}
@@ -288,25 +285,18 @@ export default function PayrunDetail({ payruns, payslips, onUpdatePayrun }: Prop
                       <td className="py-3 px-4 text-right font-mono font-semibold text-navy">
                         {formatCurrency(ps.net)}
                       </td>
+                      <td className="py-3 px-4 text-center">
+                        <StatusBadge status={ps.status} />
+                      </td>
                       <td className="py-3 px-4 text-center" onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center justify-center gap-2">
-                          <button
-                            type="button"
-                            title="View Detail"
-                            onClick={() => navigate(`/payroll/payslips/${ps.id}`)}
-                            className="p-1 hover:bg-surface rounded text-slate hover:text-navy transition-colors"
-                          >
-                            <ChevronRight size={15} />
-                          </button>
-                          <button
-                            type="button"
-                            title="Print Payslip"
-                            onClick={() => window.print()}
-                            className="p-1 hover:bg-surface rounded text-slate hover:text-navy transition-colors"
-                          >
-                            <Printer size={15} />
-                          </button>
-                        </div>
+                        <button
+                          type="button"
+                          title="Download/Print Payslip PDF"
+                          onClick={() => window.print()}
+                          className="p-1.5 hover:bg-surface rounded text-slate hover:text-accent transition-colors inline-flex items-center justify-center"
+                        >
+                          <Printer size={15} />
+                        </button>
                       </td>
                     </tr>
                   ))
