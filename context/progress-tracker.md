@@ -84,3 +84,15 @@ Update this file after every meaningful implementation change.
 - All Phase 1 backend tasks and integration tests completed and verified with `npm run typecheck`, `npm run build`, and `npm test` (23/23 tests passing, zero compilation errors).
 - Express API authentication & authorization endpoints active on port 4000.
 - Frontend dev server configured to proxy `/api` requests to backend API.
+
+## Branch Updates - Phase 2 Working Schedule (`feature/phase02-working-schedule`)
+
+- Added shared Working Schedule types, Zod schemas, DTOs, and pure time calculation utilities (`packages/shared/src/types/schedules.ts`).
+- Added Prisma `WorkingSchedule` and `WorkingScheduleDay` models, along with `WorkingScheduleType`, `WorkingScheduleStatus`, and `Weekday` enums (`apps/api/prisma/schema.prisma`).
+- Created and executed migration `phase02_working_schedules` with PostgreSQL check constraints enforcing minute ranges (0-1439), distinct start/end times, and break minute limits (0-720) across development and test databases.
+- Extended database seed script (`apps/api/prisma/seed.ts`) idempotently with standard `40 Hours / Week` and overnight `Night Shift` schedules deriving authoritative 2,400 weekly minutes.
+- Implemented backend domain module `apps/api/src/modules/schedules` (`schedule-time.ts`, `schedules.schemas.ts`, `schedules.service.ts`, `schedules.controller.ts`, `schedules.routes.ts`) with strict RBAC (`HR_MANAGER`, `HR_PAYROLL_USER`, `HR_PAYROLL_MANAGER`, `ADMIN`) and mounted on `/api/v1/schedules`.
+- Added unit tests (`schedule-time.test.ts`) and API integration test suite (`schedules.test.ts`), verifying 53/53 tests passing across the test suite.
+- Integrated frontend with `@tanstack/react-query`, `react-hook-form`, `@hookform/resolvers`, and `zod`.
+- Connected `/schedules`, `/schedules/new`, and `/schedules/:id` to PostgreSQL API via TanStack Query and React Hook Form, replacing `DUMMY_SCHEDULES` and browser-authoritative duration calculations.
+- Protected all schedule frontend routes with role restrictions matching the API matrix.

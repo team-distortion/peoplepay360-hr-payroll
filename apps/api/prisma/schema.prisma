@@ -25,3 +25,52 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
+
+enum WorkingScheduleType {
+  STANDARD
+  SHIFT
+  FLEXIBLE
+}
+
+enum WorkingScheduleStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum Weekday {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+model WorkingSchedule {
+  id          String                @id @default(uuid())
+  name        String
+  nameKey     String                @unique
+  type        WorkingScheduleType   @default(STANDARD)
+  companyName String
+  status      WorkingScheduleStatus @default(ACTIVE)
+  days        WorkingScheduleDay[]
+  createdAt   DateTime              @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime              @updatedAt @db.Timestamptz(3)
+
+  @@index([status])
+  @@index([type])
+}
+
+model WorkingScheduleDay {
+  id            String          @id @default(uuid())
+  scheduleId    String
+  dayOfWeek     Weekday
+  startMinute   Int
+  endMinute     Int
+  breakMinutes  Int             @default(0)
+  schedule      WorkingSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([scheduleId, dayOfWeek])
+  @@index([scheduleId])
+}

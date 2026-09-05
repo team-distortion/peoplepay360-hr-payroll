@@ -10,6 +10,7 @@ import AdminUsers from './pages/AdminUsers';
 import EmployeesPage from './pages/Employees';
 import ContractsPage from './pages/Contracts';
 import SchedulesPage from './pages/Schedules';
+import ScheduleForm from './pages/ScheduleForm';
 import AttendancePage from './pages/Attendance';
 import AttendanceDetail from './pages/AttendanceDetail';
 import TimeOffDashboard from './pages/time-off/TimeOffDashboard';
@@ -92,10 +93,28 @@ function App() {
           />
 
           <Route
-            path="/schedules/*"
+            path="/schedules"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR_MANAGER', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER']}>
                 <SchedulesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/schedules/new"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR_MANAGER', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER']}>
+                <ScheduleForm />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/schedules/:id"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR_MANAGER', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER']}>
+                <ScheduleForm />
               </ProtectedRoute>
             }
           />
