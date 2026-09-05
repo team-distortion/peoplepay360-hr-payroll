@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
 import AdminUsers from './pages/AdminUsers';
 import EmployeesPage from './pages/Employees';
 import EmployeeDetailPage from './pages/EmployeeDetail';
@@ -57,6 +58,15 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
+
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER', 'ADMIN']}>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/flow"
@@ -193,16 +203,7 @@ function App() {
             }
           />
 
-          <Route
-            path="/payroll/*"
-            element={
-              <ProtectedRoute>
-                <PayrollPage />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route path="*" element={<Navigate to="/employees" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
