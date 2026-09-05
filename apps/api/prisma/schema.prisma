@@ -141,3 +141,56 @@ model WorkingScheduleDay {
   @@unique([scheduleId, dayOfWeek])
   @@index([scheduleId])
 }
+
+enum SalaryRuleCategory {
+  BASIC
+  ALLOWANCE
+  OVERTIME
+  GROSS
+  DEDUCTION
+  CONTRIBUTION
+  NET
+}
+
+enum SalaryRuleMethod {
+  FIXED
+  PERCENTAGE
+  FORMULA
+}
+
+model SalaryStructure {
+  id          String       @id @default(uuid())
+  name        String
+  nameKey     String       @unique
+  description String?
+  status      RecordStatus @default(ACTIVE)
+  rules       SalaryRule[]
+  createdAt   DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime     @updatedAt @db.Timestamptz(3)
+
+  @@index([status])
+}
+
+model SalaryRule {
+  id                String             @id @default(uuid())
+  salaryStructureId String
+  name              String
+  code              String
+  category          SalaryRuleCategory
+  sequence          Int
+  method            SalaryRuleMethod
+  fixedAmount       Decimal?           @db.Decimal(18, 2)
+  percentageRate    Decimal?           @db.Decimal(9, 4)
+  percentageBase    String?
+  formula           String?
+  status            RecordStatus       @default(ACTIVE)
+  salaryStructure   SalaryStructure    @relation(fields: [salaryStructureId], references: [id], onDelete: Restrict)
+  createdAt         DateTime           @default(now()) @db.Timestamptz(3)
+  updatedAt         DateTime           @updatedAt @db.Timestamptz(3)
+
+  @@unique([salaryStructureId, code])
+  @@unique([salaryStructureId, sequence])
+  @@index([salaryStructureId, status, sequence])
+  @@index([category])
+  @@index([method])
+}

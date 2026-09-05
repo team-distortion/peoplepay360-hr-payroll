@@ -4,12 +4,12 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Backend: Phase 3 — Employee Master COMPLETE
-- Frontend: Phase 3 — Employee Master COMPLETE
+- Backend: Phase 4A Salary Configuration & Phase 4B Safe Formula Engine COMPLETE
+- Frontend: Phase 4A Salary Configuration COMPLETE
 
 ## Current Goal
 
-- Proceeding to Phase 4 (Salary Configuration & Formula Engine) & connecting remaining domains.
+- Proceeding to Phase 5 (Contract Management & Salary Structure Assignment).
 
 ## Completed
 
@@ -112,3 +112,21 @@ Update this file after every meaningful implementation change.
 - Refactored `/employees` with URL query-param-backed view toggle (Kanban/List), search, department filter, employee type filter, status filter, and real DTO binding.
 - Implemented `/employees/new` and `/employees/:id` with React Hook Form, live dropdown selectors, read-only/edit states, status confirmation toggle, disabled zero-state smart buttons (`Available after <module>`), and removed all mock employee and private data.
 - Configured frontend route protection, top navigation, and login redirects to ensure `EMPLOYEE` role users navigate to their own profile and are restricted from global employee lists.
+ 
+## Branch Updates - Phase 4 Salary Configuration (`feature/phase04-salary-configuration`)
+
+- Implemented pure, deterministic, safe arithmetic Formula Engine (`apps/api/src/modules/salary-config/formula/`) with `jsep` AST parsing, allowlisted operators, Prisma `Decimal` evaluation (28-digit precision, `ROUND_HALF_UP`), division-by-zero detection, complexity limits (max 1,000 chars, 200 nodes, 32 depth), magnitude bounds (< 10^16), and zero conversion to JS `number` or `eval`.
+- Added structure dependency validator (`structure-dependencies.ts`) verifying code/sequence uniqueness across all rules, stepwise dependency accumulation for active rules, and distinguishing forward references, self-references, inactive references, and unknown identifiers.
+- Added shared salary configuration types, DTOs, value sets (`SalaryRuleCategoryValues`, `SalaryRuleMethodValues`, `SalaryFormulaBuiltinValues`), and comprehensive Zod validation schemas (`packages/shared/src/types/salary-config.ts`) exported from `@peoplepay360/shared`.
+- Extended Prisma schema (`schema.prisma`) with `SalaryRuleCategory` and `SalaryRuleMethod` enums, `SalaryStructure` and `SalaryRule` models with unique constraints and performance indexes.
+- Created and executed migration `20260906000000_phase04_salary_configuration` with PostgreSQL check constraints enforcing uppercase alphanumeric codes (`^[A-Z][A-Z0-9_]{0,39}$`), sequences (1-1,000,000), non-negative fixed amounts, percentage rates (0-1000 with up to 4 decimal places), name normalization, and strict mutual exclusivity of method configuration fields across dev and test databases.
+- Extended database seed script (`seed.ts`) idempotently with the canonical `Regular Salary` structure and its 7 ordered rules (`BASIC`, `HRA`, `MEAL`, `OT`, `GROSS`, `PF`, `NET`).
+- Implemented backend salary configuration modules (`apps/api/src/modules/salary-config/`) with strict RBAC (`HR_PAYROLL_USER` read-only, `HR_PAYROLL_MANAGER` and `ADMIN` read-write, `EMPLOYEE` and `HR_MANAGER` denied), prospective dependency graph validation, downstream deactivation protection (`SALARY_RULE_CODE_IN_USE`), and an atomic multi-rule reordering endpoint (`updateSalaryRuleConfiguration`) utilizing a two-stage collision-free temporary sequence update.
+- Mounted payroll endpoints under `/api/v1/payroll/structures` and `/api/v1/payroll/rules`.
+- Added comprehensive unit and integration test suites:
+  - `apps/api/tests/salary-formula.test.ts` (31 tests passing) verifying formula parsing, operator precedence, parentheses, decimal precision (`0.1 + 0.2 = 0.3`), division by zero, AST complexity limits, security rejections, dependency validation, and static safety assertions.
+  - `apps/api/tests/salary-config.test.ts` (17 tests passing) verifying full 5-role RBAC matrix, structure uniqueness, activation requirements (>= 1 active rule), rule method exclusivity, dependency errors, deactivation locks, atomic sequence swaps, and seed correctness.
+  - Full test suite passing across all domains (124/124 tests passing).
+- Created frontend TanStack Query API and query hook layer (`frontend/src/features/salary-config/`).
+- Built frontend Salary Structures list page (`SalaryStructures.tsx`), Structure Detail page (`SalaryStructureDetail.tsx`) with accessible Move Up / Move Down controls and atomic configuration saving, global Salary Rules list page (`SalaryRules.tsx`) with multi-facet filters, and Salary Rule form (`SalaryRuleDetail.tsx`) with dynamic method fields and interactive available-identifier insert chips.
+- Updated `TopNav.tsx` to conditionally display the Payroll dropdown only to authorized payroll roles (`HR_PAYROLL_USER`, `HR_PAYROLL_MANAGER`, `ADMIN`) and updated `App.tsx` routes with role-based `ProtectedRoute` guards.

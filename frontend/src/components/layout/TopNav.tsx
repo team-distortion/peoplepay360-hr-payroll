@@ -137,16 +137,18 @@ export default function TopNav() {
               { label: 'Allocations', path: '/time-off/allocations' },
             ]}
           />
-          <Dropdown
-            label="Payroll"
-            active={isPayrollActive}
-            items={[
-              { label: 'Payruns', path: '/payroll/payruns' },
-              { label: 'Payslips', path: '/payroll/payslips' },
-              { label: 'Salary Structures', path: '/payroll/structures' },
-              { label: 'Salary Rules', path: '/payroll/rules' },
-            ]}
-          />
+          {(user?.role === 'ADMIN' ||
+            user?.role === 'HR_PAYROLL_MANAGER' ||
+            user?.role === 'HR_PAYROLL_USER') && (
+            <Dropdown
+              label="Payroll"
+              active={isPayrollActive}
+              items={[
+                { label: 'Salary Structures', path: '/payroll/structures' },
+                { label: 'Salary Rules', path: '/payroll/rules' },
+              ]}
+            />
+          )}
           {user?.role === 'ADMIN' && (
             <Link
               to="/admin/users"

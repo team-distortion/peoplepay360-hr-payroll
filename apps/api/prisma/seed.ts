@@ -6,6 +6,8 @@ import {
   Weekday,
   WorkingScheduleStatus,
   WorkingScheduleType,
+  SalaryRuleCategory,
+  SalaryRuleMethod,
 } from '@prisma/client';
 import argon2 from 'argon2';
 
@@ -455,8 +457,146 @@ async function main() {
     });
   }
 
+  console.log('Seeding Salary Structures and Rules...');
+  const regularStructure = await prisma.salaryStructure.upsert({
+    where: { nameKey: 'regular salary' },
+    update: {
+      name: 'Regular Salary',
+      description: 'Standard full-time salary structure with basic allowances and statutory deductions',
+      status: RecordStatus.ACTIVE,
+    },
+    create: {
+      name: 'Regular Salary',
+      nameKey: 'regular salary',
+      description: 'Standard full-time salary structure with basic allowances and statutory deductions',
+      status: RecordStatus.ACTIVE,
+    },
+  });
+
+  const salaryRules = [
+    {
+      sequence: 10,
+      name: 'Basic Salary',
+      code: 'BASIC',
+      category: SalaryRuleCategory.BASIC,
+      method: SalaryRuleMethod.FORMULA,
+      fixedAmount: null,
+      percentageRate: null,
+      percentageBase: null,
+      formula: 'PRORATED_BASIC',
+      status: RecordStatus.ACTIVE,
+    },
+    {
+      sequence: 20,
+      name: 'House Rent Allowance',
+      code: 'HRA',
+      category: SalaryRuleCategory.ALLOWANCE,
+      method: SalaryRuleMethod.PERCENTAGE,
+      fixedAmount: null,
+      percentageRate: '20.0000',
+      percentageBase: 'BASIC',
+      formula: null,
+      status: RecordStatus.ACTIVE,
+    },
+    {
+      sequence: 30,
+      name: 'Meal Allowance',
+      code: 'MEAL',
+      category: SalaryRuleCategory.ALLOWANCE,
+      method: SalaryRuleMethod.FIXED,
+      fixedAmount: '2000.00',
+      percentageRate: null,
+      percentageBase: null,
+      formula: null,
+      status: RecordStatus.ACTIVE,
+    },
+    {
+      sequence: 40,
+      name: 'Overtime',
+      code: 'OT',
+      category: SalaryRuleCategory.OVERTIME,
+      method: SalaryRuleMethod.FORMULA,
+      fixedAmount: null,
+      percentageRate: null,
+      percentageBase: null,
+      formula: 'OVERTIME_HOURS * 250',
+      status: RecordStatus.ACTIVE,
+    },
+    {
+      sequence: 50,
+      name: 'Gross Salary',
+      code: 'GROSS',
+      category: SalaryRuleCategory.GROSS,
+      method: SalaryRuleMethod.FORMULA,
+      fixedAmount: null,
+      percentageRate: null,
+      percentageBase: null,
+      formula: 'BASIC + HRA + MEAL + OT',
+      status: RecordStatus.ACTIVE,
+    },
+    {
+      sequence: 60,
+      name: 'Provident Fund',
+      code: 'PF',
+      category: SalaryRuleCategory.DEDUCTION,
+      method: SalaryRuleMethod.PERCENTAGE,
+      fixedAmount: null,
+      percentageRate: '12.0000',
+      percentageBase: 'BASIC',
+      formula: null,
+      status: RecordStatus.ACTIVE,
+    },
+    {
+      sequence: 70,
+      name: 'Net Salary',
+      code: 'NET',
+      category: SalaryRuleCategory.NET,
+      method: SalaryRuleMethod.FORMULA,
+      fixedAmount: null,
+      percentageRate: null,
+      percentageBase: null,
+      formula: 'GROSS - PF',
+      status: RecordStatus.ACTIVE,
+    },
+  ];
+
+  for (const rule of salaryRules) {
+    await prisma.salaryRule.upsert({
+      where: {
+        salaryStructureId_code: {
+          salaryStructureId: regularStructure.id,
+          code: rule.code,
+        },
+      },
+      update: {
+        name: rule.name,
+        category: rule.category,
+        sequence: rule.sequence,
+        method: rule.method,
+        fixedAmount: rule.fixedAmount,
+        percentageRate: rule.percentageRate,
+        percentageBase: rule.percentageBase,
+        formula: rule.formula,
+        status: rule.status,
+      },
+      create: {
+        salaryStructureId: regularStructure.id,
+        name: rule.name,
+        code: rule.code,
+        category: rule.category,
+        sequence: rule.sequence,
+        method: rule.method,
+        fixedAmount: rule.fixedAmount,
+        percentageRate: rule.percentageRate,
+        percentageBase: rule.percentageBase,
+        formula: rule.formula,
+        status: rule.status,
+      },
+    });
+  }
+
   console.log('Seed completed successfully.');
-  console.log('Created/updated: 3 schedules, 5 departments, 8 employees, 5 users.');
+  console.log('Created/updated: 3 schedules, 5 departments, 8 employees, 5 users, 1 salary structure with 7 rules.');
   console.log(`Development login password: ${DEV_PASSWORD}`);
 }
 

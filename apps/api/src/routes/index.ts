@@ -4,6 +4,8 @@ import { authRouter } from '../modules/auth/auth.routes.js';
 import { schedulesRouter } from '../modules/schedules/schedules.routes.js';
 import { departmentsRouter } from '../modules/departments/departments.routes.js';
 import { employeesRouter } from '../modules/employees/employees.routes.js';
+import { salaryStructuresRouter } from '../modules/salary-config/salary-structures.routes.js';
+import { salaryRulesRouter } from '../modules/salary-config/salary-rules.routes.js';
 
 export const apiRouter = Router();
 
@@ -12,3 +14,8 @@ apiRouter.use('/auth', authRouter);
 apiRouter.use('/schedules', schedulesRouter);
 apiRouter.use('/departments', departmentsRouter);
 apiRouter.use('/employees', employeesRouter);
+
+const payrollRouter = Router();
+payrollRouter.use('/structures', salaryStructuresRouter);
+payrollRouter.use('/rules', salaryRulesRouter);
+apiRouter.use('/payroll', payrollRouter);
