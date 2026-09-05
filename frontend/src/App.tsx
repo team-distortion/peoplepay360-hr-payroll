@@ -39,6 +39,10 @@ import ContractsPage from './pages/Contracts';
 import SchedulesPage from './pages/Schedules';
 import AttendancePage from './pages/Attendance';
 import AttendanceDetail from './pages/AttendanceDetail';
+import TimeOffDashboard from './pages/time-off/TimeOffDashboard';
+import TimeOffRequests from './pages/time-off/TimeOffRequests';
+import TimeOffAllocations from './pages/time-off/TimeOffAllocations';
+import TimeOffTypes from './pages/time-off/TimeOffTypes';
 
 function App() {
   return (
@@ -52,6 +56,10 @@ function App() {
         <Route path="/schedules/*" element={<SchedulesPage />} />
         <Route path="/attendance" element={<AttendancePage />} />
         <Route path="/attendance/:id" element={<AttendanceDetail />} />
+        <Route path="/time-off" element={<TimeOffDashboard />} />
+        <Route path="/time-off/requests/*" element={<TimeOffRequests />} />
+        <Route path="/time-off/allocations/*" element={<TimeOffAllocations />} />
+        <Route path="/time-off/types/*" element={<TimeOffTypes />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>

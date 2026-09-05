@@ -58,6 +58,7 @@ export default function TopNav() {
   const isSchedulesActive = location.pathname.startsWith('/schedules');
   const isContractsActive = location.pathname.startsWith('/contracts');
   const isAttendanceActive = location.pathname.startsWith('/attendance');
+  const isTimeOffActive = location.pathname.startsWith('/time-off');
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-white px-6 h-14 flex items-center justify-between">
@@ -98,10 +99,12 @@ export default function TopNav() {
           </Link>
           <Dropdown
             label="Time Off"
-            active={false}
+            active={isTimeOffActive}
             items={[
-              { label: 'Overview', path: '#' },
-              { label: 'My Requests', path: '#' },
+              { label: 'Dashboard', path: '/time-off' },
+              { label: 'Time offs', path: '/time-off/requests' },
+              { label: 'Time off Types', path: '/time-off/types' },
+              { label: 'Allocations', path: '/time-off/allocations' },
             ]}
           />
           <Link
