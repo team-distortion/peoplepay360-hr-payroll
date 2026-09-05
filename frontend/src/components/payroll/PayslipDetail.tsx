@@ -235,28 +235,35 @@ export default function PayslipDetail({ payslips, onUpdatePayslip }: Props) {
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="bg-surface/70 border-b border-border text-[11px] font-semibold text-slate uppercase tracking-wider">
-                    <th className="py-2.5 px-4">Rule Name</th>
-                    <th className="py-2.5 px-4">Code</th>
+                    <th className="py-2.5 px-4">Rule</th>
                     <th className="py-2.5 px-4">Category</th>
                     <th className="py-2.5 px-4 text-right">Amount</th>
+                    <th className="py-2.5 px-4 font-mono">Code</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
                   {payslip.lines.map((line, idx) => {
                     const isDeduction = line.category === 'Deduction';
+                    const isNet = line.category === 'Net' || line.ruleCode === 'ALT';
                     return (
                       <tr
                         key={idx}
                         className={
-                          line.category === 'Net'
-                            ? 'bg-amber-50/40 font-bold'
+                          isNet
+                            ? 'bg-amber-50/60 font-bold border-t border-amber-200'
                             : line.category === 'Gross'
-                            ? 'bg-surface/40 font-semibold'
+                            ? 'bg-surface/50 font-semibold'
                             : 'hover:bg-surface/30'
                         }
                       >
-                        <td className="py-2.5 px-4 font-medium text-navy">{line.ruleName}</td>
-                        <td className="py-2.5 px-4 font-mono text-[11px] text-slate">{line.ruleCode}</td>
+                        <td className="py-2.5 px-4 font-medium text-navy">
+                          <span className={isNet ? 'text-navy font-bold' : ''}>{line.ruleName}</span>
+                          {isNet && (
+                            <span className="ml-2 text-[10px] font-normal text-slate">
+                              (Net take-home pay)
+                            </span>
+                          )}
+                        </td>
                         <td className="py-2.5 px-4">
                           <span
                             className={`inline-flex px-2 py-0.5 rounded text-[10px] font-semibold border ${
@@ -268,12 +275,15 @@ export default function PayslipDetail({ payslips, onUpdatePayslip }: Props) {
                         </td>
                         <td
                           className={`py-2.5 px-4 text-right font-mono font-medium ${
-                            isDeduction ? 'text-rose-600' : 'text-navy'
+                            isDeduction ? 'text-rose-600 font-semibold' : 'text-navy'
                           }`}
                         >
                           {isDeduction
                             ? `- ${formatCurrency(Math.abs(line.amount))}`
                             : formatCurrency(line.amount)}
+                        </td>
+                        <td className="py-2.5 px-4 font-mono text-[11px] text-slate font-medium">
+                          {line.ruleCode}
                         </td>
                       </tr>
                     );

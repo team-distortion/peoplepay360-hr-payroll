@@ -121,7 +121,7 @@ export default function PayslipList({ payslips }: Props) {
                   <th className="py-3 px-4">Warnings</th>
                   <th className="py-3 px-4 text-right">Basic</th>
                   <th className="py-3 px-4 text-right">Gross</th>
-                  <th className="py-3 px-4 text-right">Net Salary</th>
+                  <th className="py-3 px-4 text-right">Alt (Net)</th>
                   <th className="py-3 px-4 text-center">Print</th>
                 </tr>
               </thead>
