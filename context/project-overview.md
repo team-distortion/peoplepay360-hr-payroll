@@ -1,4 +1,4 @@
-# Project Overview
+# PeoplePay360 Project Overview
 
 ## About the Project
 
@@ -9,6 +9,37 @@ applies to the payroll period. Working hours come from an assigned schedule, att
 contains exceptions that may need review, leave balances depend on allocations and 
 approved requests, and payroll must transform all of that into understandable payslips 
 before payment. 
+
+## Canonical Vocabulary
+
+Use these terms consistently in product copy, code discussions, tickets, and documentation:
+
+- **PeoplePay360** — the product name.
+- **User Account** — authentication identity used to sign in. Do not use “Employee” when referring to login credentials.
+- **Employee** — the central HR record. A User Account may be linked to an Employee.
+- **Role** — one of Employee, HR Manager, HR Payroll User, HR Payroll Manager, or Admin.
+- **Working Schedule** — the expected weekly work pattern. Do not call it a calendar or shift unless referring to a separate future feature.
+- **Time Off** — the canonical term for employee absence. Use “leave” only in explanatory text, not as a competing module name.
+- **Time Off Type** — policy defining how a kind of Time Off behaves.
+- **Allocation** — an approved balance made available to an Employee for a Time Off Type.
+- **Time Off Request** — an Employee's request to consume Time Off.
+- **Salary Structure** — an ordered collection of Salary Rules.
+- **Salary Rule** — one calculation that produces a salary component.
+- **Salary component categories** — Basic, Allowance, Gross, Deduction, and Net.
+- **Period** — the start and end dates covered by a Payrun.
+- **Payrun** — a payroll batch for a defined structure, period, and set of Employees. Never write “Pay Run.”
+- **Payslip** — one Employee's payroll result inside a Payrun.
+- **Warning** — a validation issue attached to a Payrun or Payslip; it is not a workflow status.
+- **Payrun actions** — Compute, Validate, Mark Paid, and Send Payslips. Actions are not statuses.
+
+Use only these workflow labels:
+
+- Contract: **Running**, **Expired**
+- Time Off Request: **Pending**, **Approved**, **Refused**
+- Allocation: **Pending**, **Approved**, **Refused**, **Expired**
+- Payrun and Payslip: **Draft**, **Computed**, **Validated**, **Paid**
+- Attendance status: **Present**, **Late**, **Absent**
+- Attendance flags: **Overtime**, **Missing Check-Out**, **Manually Edited**
 
 
 ---
@@ -21,9 +52,19 @@ record acts as the central hub, related Contracts and Working Schedules provide 
 context, Attendance and Time Off capture day-to-day HR activity, Salary Structures and 
 Rules define salary computation, and Payruns turn eligible employee records into 
 validated payslips that can be printed as PDF and sent to employees. 
-frontend - React / Next.js, Tailwind CSS, shadcn/ui General CRM UI, @xyflow/react Canvas, Lucide Icons  Inter Typography
+The project uses React and TypeScript for the frontend, Express and TypeScript for the
+backend, PostgreSQL for storage, and Prisma ORM for database access and migrations. It is
+locally deployable and does not depend on a hosted authentication provider.
 
- 
+### Backend Direction
+
+- The repository is an npm-workspace monorepo containing the React app, Express API, and shared TypeScript contracts.
+- Authentication is handled locally with Admin-created User Accounts, Argon2 password hashing, server-side sessions, and PostgreSQL session storage.
+- Authorization follows the five PeoplePay360 roles and is enforced by the Express API, not only by UI visibility.
+- PostgreSQL runs through Docker Compose during development; React and Express run through CLI development scripts.
+- Dockerfiles allow the complete application to be run through Docker Compose for final verification.
+- Prisma is a local database access layer; PostgreSQL remains the authoritative data store.
+- Payroll, Time Off approval, balance consumption, and other multi-record operations must complete consistently without partial results.
 
 ---
 
@@ -36,38 +77,38 @@ frontend - React / Next.js, Tailwind CSS, shadcn/ui General CRM UI, @xyflow/reac
 /dashboard                     → Payroll Dashboard: KPIs, salary/attendance charts, alerts
 
 /employees                     → Employee list (Kanban + List views)
-/employees/[id]                → Employee form (the hub) — smart buttons to Contracts, Attendance, Time Off, Allocations
+/employees/:id                 → Employee form (the hub) — smart buttons to Contracts, Attendance, Time Off, Allocations
 
 /contracts                     → Global contract list (dates, wage, active status)
-/contracts/[id]                → Contract form (duration, department, position, wage, salary structure)
+/contracts/:id                 → Contract form (duration, department, position, wage, Salary Structure)
 
 /schedules                     → Working schedule list (name, type, weekly hours)
-/schedules/[id]                → Schedule form (day/start/end/break grid, auto-computed weekly hours)
+/schedules/:id                 → Schedule form (day/start/end/break grid, auto-computed weekly hours)
 
 /attendance                    → Global attendance list (check-in/out, worked hours, status)
-/attendance/[id]               → Attendance form (manual correction, restricted to authorized users)
+/attendance/:id                → Attendance form (manual correction, restricted to authorized users)
 
 /time-off/requests             → Time off request list (employee, type, dates, status)
-/time-off/requests/[id]        → Request form (approve/refuse workflow)
+/time-off/requests/:id         → Request form (approve/refuse workflow)
 /time-off/allocations          → Allocation list (balances: taken/remaining/validity)
-/time-off/allocations/[id]     → Allocation form
+/time-off/allocations/:id      → Allocation form
 /time-off/types                → Time off type config (units, approval rules, payroll integration)
-/time-off/types/[id]           → Type form
+/time-off/types/:id            → Type form
 
-/payroll/structures            → Salary structure list (rule count, employees, active status)
-/payroll/structures/[id]       → Structure form (manage included rules + sequence)
+/payroll/structures            → Salary Structure list (rule count, employees, active status)
+/payroll/structures/:id        → Structure form (manage included rules + sequence)
 /payroll/rules                 → Salary rule list (name, code, category, sequence)
-/payroll/rules/[id]            → Rule form (fixed / percentage / formula computation)
+/payroll/rules/:id             → Rule form (fixed / percentage / formula computation)
 
 /payroll/payruns               → Payrun list (historical + in-progress batches)
 /payroll/payruns/new           → 2-step wizard: Step 1 scope+period → Step 2 employee selection
-/payroll/payruns/[id]          → Payrun processing screen: Compute, Validate, Mark Paid, Send Payslips
+/payroll/payruns/:id           → Payrun processing screen: Compute, Validate, Mark Paid, Send Payslips
 /payroll/payslips              → Global payslip list
-/payroll/payslips/[id]         → Payslip detail: rule breakdown (Basic/Allowances/Deductions/Gross/Net), Print PDF
+/payroll/payslips/:id          → Payslip detail: rule breakdown (Basic/Allowance/Deduction/Gross/Net), Print PDF
 
 /admin/users                   → User management (Admin role)
 /admin/roles                   → Role & permission assignment
-
+```
 
 ---
 
@@ -75,11 +116,11 @@ frontend - React / Next.js, Tailwind CSS, shadcn/ui General CRM UI, @xyflow/reac
 
 ### Login & User Access  
 
-- User accounts are created by an Admin, not via self-signup
+- User Accounts are created by an Admin, not via self-signup
 - When creating a user, the Admin links the account to an employee record and assigns one or more roles
 - Roles control which modules, records, and actions become visible after login
 - A user cannot assign or elevate their own role
-- Password reset, invitations, SSO are explicitly left as future enhancements, not required for the hackathon build
+- Password reset, invitations, SSO are explicitly left as future enhancements, not required now
 
 ### Employee Hub (Central Record)
 
@@ -97,7 +138,7 @@ frontend - React / Next.js, Tailwind CSS, shadcn/ui General CRM UI, @xyflow/reac
 ### Working Schedules
 
 - Require List and Form views; clicking a row opens that schedule
-- List surfaces name, calendar type, days/week, hours/week, company, status
+- List surfaces name, schedule type, days/week, hours/week, company, status
 - Form defines the weekly pattern (day, start/end time, optional break); **weekly hours are derived automatically, never entered manually**
 - A schedule attaches to an Employee or a Contract, and is used by both Attendance and Payroll as the expected working time
 - Shift work, flexible-time, and similar variants are left open to the builder
@@ -113,7 +154,7 @@ frontend - React / Next.js, Tailwind CSS, shadcn/ui General CRM UI, @xyflow/reac
 ### Time Off
 
 - Requests, Allocations, and Time Off Types are reached only via the **Time Off ▾** dropdown — no separate top-level pages for them
-- Time Off Types define how each leave type behaves (unit, whether allocation is required, approval workflow); exact policies are left open
+- Time Off Types define how each type of Time Off behaves (unit, whether Allocation is required, approval workflow); exact policies are left open
 - An Allocation must be approved before its balance becomes available — this is what actually creates usable leave, not the Type itself
 - Employee submits a Time Off Request themselves; List view supports a **"My Team"** filter and inline Approve/Refuse actions for managers
 - Request detail form shows which specific Allocation the request draws from ("Allocation Used")
@@ -124,42 +165,42 @@ frontend - React / Next.js, Tailwind CSS, shadcn/ui General CRM UI, @xyflow/reac
 - A Salary Structure is a named container (e.g. "Regular Salary") that groups Salary Rules; List view shows rule count, employee count, active status
 - A Salary Rule has Name, Code, Category (Basic / Allowance / Gross / Deduction / Net), Sequence, and a computation method
 - Rules run **in sequence** — a later rule (Net) can reference totals from an earlier one (Gross)
-- Computation methods: Fixed Amount (exact value, e.g. Meal Allowance = 2,000), Percentage (of a selected base like Contract Wage/Basic/Gross, e.g. HRA = 20% × Basic), or Python Code/Formula (for attendance-based pay, overtime, unpaid-leave deductions, or cross-rule math)
+- Computation methods: Fixed Amount (exact value, e.g. Meal Allowance = 2,000), Percentage (of a selected base like Contract Wage/Basic/Gross, e.g. HRA = 20% × Basic), or Formula (for attendance-based pay, overtime, unpaid-Time-Off deductions, or cross-rule math)
 - A Structure is attached at the Contract level, then re-selected as scope when creating a Payrun
 
 ### Payrun Creation (2-Step Wizard)
 
 - Clicking **New** opens a popup collecting scope only — nothing is created yet
-- Step 1: Pay Structure + Period (date range) → **Continue**
+- Step 1: Salary Structure + Period → **Continue**
 - Step 2: checkbox-select eligible employees from a filtered list (working hours, start date, wage shown per row) → **Create Payrun**
 - A Payrun record is only created after this second step — Continue alone never creates one
 
 ### Payslip Computation
 
-- Each selected employee gets one Payslip linked to the Payrun
-- Computation uses that employee's applicable contract + the Payrun's assigned Salary Structure
-- Payslip breaks down into Basic, Allowances, Deductions, Gross, and Net, each tied to the Salary Rule and Code that produced it
+- Each selected Employee gets one Payslip linked to the Payrun
+- Computation uses that Employee's applicable Contract and the Payrun's assigned Salary Structure
+- The Payslip breaks down into Basic, Allowance, Deduction, Gross, and Net components, each tied to the Salary Rule and Code that produced it
 
 ### Payrun Review & Validation
 
 - Payrun processing screen has four actions: **Compute, Validate, Mark Paid, Send Payslips**
-- Workflow states run **Draft → Compute → Validate → Mark Paid**
-- Per-payslip warnings surface inline before finalization — e.g. missing bank/account details, duplicate payslip
-- A global **Payslips** list also exists outside any single Payrun, filterable by period, for browsing across payruns
+- Actions move the Payrun through **Draft → Computed → Validated → Paid**
+- Per-Payslip warnings surface inline before validation — e.g. missing bank/account details or a duplicate Payslip
+- A global **Payslips** list also exists outside any single Payrun, filterable by Period, for browsing across Payruns
 
 ### Payslip Distribution & Archiving
 
 - **Print Payslip** generates an individual PDF from either the Payrun or the Payslips list
 - **Send Payslips** on the parent Payrun triggers bulk email delivery to the batch
-- Paid/finalized Payruns remain available as historical records
+- Validated and Paid Payruns remain available as historical records
 
 ### Payroll Dashboard
 
 - Filters: **Period, Department, Employee Type, and Company** — all affect the data shown
 - KPI cards: Total Net Salary Paid, Payslips Generated, Average Salary, Approved Time Off, Attendance Health
 - Charts: Salary Cost by Department, Monthly Net Salary Trend
-- Payslip Status legend: **Paid / Done / Pending / Warning**
-- Operational alerts, e.g.: duplicate payslip warning, drafts still not validated, contracts expiring this month
+- Payrun and Payslip statuses use **Draft / Computed / Validated / Paid**; warnings are displayed separately
+- Operational alerts include duplicate Payslip Warnings, Draft Payruns awaiting validation, and Contracts expiring this month
 - Attendance/Time Off overview: present, late, absent, overtime, pending requests, leave balances
 - Department breakdown combines headcount with total salary expenditure
 - Underlying data to aggregate: Employees/Departments (headcount, grouping) · Contracts (wage, schedule, active employees) · Payruns/Payslips (totals, paid vs. pending, trend) · Attendance (presence, late, overtime) · Time Off (leave taken, balances) — all real data, not hardcoded
@@ -167,6 +208,7 @@ frontend - React / Next.js, Tailwind CSS, shadcn/ui General CRM UI, @xyflow/reac
 ---
 ## Data Architecture
 
+PeoplePay360 uses PostgreSQL through Prisma ORM. The entities below define the product-level data model; the physical schema, indexes, and implementation details belong in the architecture documentation.
 
 ### Core HR Entities
 - **Employee** — central record; department, manager, job position, work location, status, and an assigned Working Schedule
@@ -182,19 +224,19 @@ frontend - React / Next.js, Tailwind CSS, shadcn/ui General CRM UI, @xyflow/reac
 ### Payroll Entities
 - **Salary Rule** — Name, Code, Category (Basic/Allowance/Gross/Deduction/Net), Sequence, computation method (fixed / percentage / formula)
 - **Salary Structure** — named ordered grouping of Salary Rules; attached at Contract level, then re-selected as scope on a Payrun
-- **Payrun** — scope (Salary Structure + Period) + selected Employees; status flow **Draft → Compute → Validate → Mark Paid** (mockup workflow note); parent of Payslips
-- **Payslip** — one per Employee per Payrun; resolves that employee's period-applicable Contract, runs the Payrun's Salary Structure rules against it, stores the resulting Basic/Allowances/Deductions/Gross/Net lines
+- **Payrun** — scope (Salary Structure + Period) + selected Employees; status flow **Draft → Computed → Validated → Paid**; parent of Payslips
+- **Payslip** — one per Employee per Payrun; resolves that Employee's period-applicable Contract, runs the Payrun's Salary Rules, and stores the resulting Basic/Allowance/Deduction/Gross/Net lines
 
 ### User & Access *(mockup only — not in PDF)*
-- **User** — created by an Admin only, never self-registered; linked 1:1 to an Employee record; holds one or more Roles
-- **Role** — controls module/record/action visibility;  (Employee, HR Manager, HR Payroll User, HR Payroll Manager, Admin)
+- **User Account** — created by an Admin only, never self-registered; linked 1:1 to an Employee record; holds one or more Roles
+- **Role** — controls module/record/action visibility; the five roles are the ones PDF Section 3 defines (Employee, HR Manager, HR Payroll User, HR Payroll Manager, Admin)
 
 ---
 
 ## Features In Scope
 
 - Employee Master: Kanban + List + Form views, department/manager/schedule/position/status fields, smart-button links to related Contracts/Attendance/Time Off/Allocations
-- Contract Management: historical records retained, active contract clearly highlighted, period-based contract resolution for payroll
+- Contract Management: historical records retained, Running Contract clearly highlighted, period-based Contract resolution for payroll
 - Working Schedule Setup: List + Form, auto-computed weekly hours, assignable to Employee or Contract
 - Time Off Type, Allocation & Request lifecycle, with approval workflow and automatic balance deduction
 - Salary Structure Setup: container of ordered Salary Rules, List + Form views
@@ -204,9 +246,10 @@ frontend - React / Next.js, Tailwind CSS, shadcn/ui General CRM UI, @xyflow/reac
 - Payrun 2-step creation wizard (scope → employee selection), created only after final confirmation
 - Payrun processing screen: Compute, Validate, Mark Paid, Send Payslips
 - Payslip detail screen with full rule-by-rule computation breakdown
-- Global Payslips list, independent of any single Payrun 
+- Global Payslips list, independent of any single Payrun (PDF B7 confirms this, not mockup-only)
 - Payslip PDF generation and bulk email delivery from the Payrun
-- Admin-managed user accounts linked to employee records, with role assignment *(mockup only)*
+- Locally managed User Account authentication with role-based authorization and no hosted authentication dependency
+- Admin-managed User Accounts linked to Employee records, with Role assignment *(mockup only)*
 - Attendance quick-action check-in/check-out widget with elapsed-time display *(mockup only)*
 - "My Team" filter and inline Approve/Refuse on the Time Off Requests list *(mockup only)*
 - Dashboard filter by Company, in addition to Period/Department/Employee Type *(mockup only)*
@@ -231,11 +274,11 @@ Everything below is *not mentioned in either document* — treat this as a reaso
 
 ## Historical Tracking & Auditability
 
-Neither document names an analytics/event-tracking tool (nothing like PostHog appears anywhere) — 
+Neither document names an analytics/event-tracking tool (nothing like PostHog appears anywhere) — Section 7 leaves this open along with the rest of the stack. What both sources do explicitly require retained as history:
 
-- Finalized/paid Payruns "remain available as historical data" (mockup) / "preserved as historical records" 
+- Validated and Paid Payruns remain available as historical records
 - Expired contracts stay visible in the Contracts list rather than being removed (mockup: "retain contract history... make the active Running contract obvious")
-- "Comprehensive historical payroll tracking" is named directly as a system-architecture goal 
+- "Comprehensive historical payroll tracking" is named directly as a system-architecture goal (PDF Section 6)
 - Attendance data must remain "usable later for reporting/dashboard insights" (mockup)
 
 ---
@@ -254,9 +297,17 @@ Neither document names an analytics/event-tracking tool (nothing like PostHog ap
 ## Success Criteria
 
 - A fully operational platform populated with representative employee, contract, time, salary, and payroll data — not a static mockup
-- Payroll correctly resolves the period-applicable contract even when an employee has contract history
+- Payroll correctly resolves the Period-applicable Contract even when an Employee has Contract history
 - Approved leave correctly consumes the linked Allocation's balance
 - Salary Rules execute in sequence so later totals (Net) correctly build on earlier ones (Gross)
-- Payroll issues (missing info, duplicate payslips) are surfaced to the user before finalization, not silently allowed through
+- Payroll issues such as missing information and duplicate Payslips are surfaced as Warnings before validation
 - The Payroll Dashboard reflects real, live system data — explicitly not hardcoded values
 - Payslip PDF generation and bulk email delivery both work from the Payrun
+- Admin-created User Accounts can sign in through locally managed authentication without Clerk or another hosted authentication provider
+- Every protected backend action enforces the permissions of the authenticated PeoplePay360 role
+- PostgreSQL can be initialized reproducibly from Prisma migrations and representative seed data
+- Payrun creation does not create duplicate Payslips for the same Employee and payroll period
+- A failed payroll or Time Off operation does not leave partially updated records
+- Salary and deduction calculations preserve decimal accuracy and do not rely on JavaScript floating-point arithmetic
+- Historical Contracts, validated Payslips, and paid Payruns remain available and unchanged for later review
+- The complete application can be verified locally with React, Express, PostgreSQL, and the documented Docker workflow
