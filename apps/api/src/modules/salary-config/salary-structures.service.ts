@@ -55,7 +55,20 @@ export async function listSalaryStructures(
     }),
   ]);
 
-  const items: SalaryStructureListItemDto[] = structures.map(toSalaryStructureListItemDto);
+  const structureIds = structures.map((s) => s.id);
+  const contractCounts = await prisma.contract.groupBy({
+    by: ['salaryStructureId', 'employeeId'],
+    where: { salaryStructureId: { in: structureIds } },
+  });
+  const employeeCountMap = new Map<string, number>();
+  for (const c of contractCounts) {
+    employeeCountMap.set(c.salaryStructureId, (employeeCountMap.get(c.salaryStructureId) || 0) + 1);
+  }
+
+  const items: SalaryStructureListItemDto[] = structures.map((s) => ({
+    ...toSalaryStructureListItemDto(s),
+    employeeCount: employeeCountMap.get(s.id) || 0,
+  }));
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
 
   return {
@@ -93,7 +106,17 @@ export async function getSalaryStructureById(
     );
   }
 
-  return toSalaryStructureDetailDto(structure);
+  const distinctEmployees = await prisma.contract.findMany({
+    where: { salaryStructureId: id },
+    distinct: ['employeeId'],
+    select: { employeeId: true },
+  });
+
+  const detailDto = toSalaryStructureDetailDto(structure);
+  return {
+    ...detailDto,
+    employeeCount: distinctEmployees.length,
+  };
 }
 
 export async function createSalaryStructure(

@@ -99,6 +99,7 @@ export interface EmployeeDetailDto extends EmployeeListItemDto {
   bankIfsc: string | null;
   companyName: string;
   user: EmployeeLinkedUserSummary | null;
+  contractCount?: number;
   createdAt: string;
   updatedAt: string;
 }
