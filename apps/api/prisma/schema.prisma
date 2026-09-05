@@ -36,6 +36,7 @@ model User {
   employee     Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
   isActive     Boolean   @default(true)
   auditLogs    AuditLog[]
+  attendanceEdits Attendance[] @relation("AttendanceLastEditor")
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 }
@@ -86,6 +87,7 @@ model Employee {
   workingSchedule WorkingSchedule?  @relation(fields: [workingScheduleId], references: [id], onDelete: Restrict)
   user            User?
   contracts       Contract[]
+  attendances     Attendance[]
 
   @@index([departmentId])
   @@index([managerId])
@@ -126,6 +128,7 @@ model WorkingSchedule {
   days        WorkingScheduleDay[]
   employees   Employee[]
   contracts   Contract[]
+  attendances Attendance[]
   createdAt   DateTime              @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime              @updatedAt @db.Timestamptz(3)
 
@@ -244,4 +247,43 @@ model AuditLog {
   @@index([action])
   @@index([createdAt])
 }
+
+enum AttendanceStatus {
+  PRESENT
+  LATE
+  ABSENT
+}
+
+model Attendance {
+  id                   String           @id @default(uuid())
+  employeeId           String
+  attendanceDate       DateTime         @db.Date
+  checkInAt            DateTime?        @db.Timestamptz(3)
+  checkOutAt           DateTime?        @db.Timestamptz(3)
+  status               AttendanceStatus
+  workedMinutes        Int              @default(0)
+  overtimeMinutes      Int              @default(0)
+  workingScheduleId    String
+  expectedStartMinute  Int?
+  expectedEndMinute    Int?
+  expectedBreakMinutes Int              @default(0)
+  expectedMinutes      Int              @default(0)
+  manuallyEdited       Boolean          @default(false)
+  lastEditedByUserId   String?
+  lastEditedAt         DateTime?        @db.Timestamptz(3)
+  createdAt            DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt            DateTime         @updatedAt @db.Timestamptz(3)
+
+  employee         Employee        @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  workingSchedule  WorkingSchedule @relation(fields: [workingScheduleId], references: [id], onDelete: Restrict)
+  lastEditedByUser User?           @relation("AttendanceLastEditor", fields: [lastEditedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([employeeId, attendanceDate])
+  @@index([attendanceDate, status])
+  @@index([employeeId, attendanceDate])
+  @@index([workingScheduleId])
+  @@index([manuallyEdited])
+  @@index([overtimeMinutes])
+}
+
 

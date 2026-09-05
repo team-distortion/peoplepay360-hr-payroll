@@ -123,19 +123,20 @@ export async function getEmployeeById(
     }
   }
 
-  const [employee, contractCount] = await Promise.all([
+  const [employee, contractCount, attendanceCount] = await Promise.all([
     prisma.employee.findUnique({
       where: { id },
       include: employeeDetailIncludes,
     }),
     prisma.contract.count({ where: { employeeId: id } }),
+    prisma.attendance.count({ where: { employeeId: id } }),
   ]);
 
   if (!employee) {
     throw new AppError(404, 'EMPLOYEE_NOT_FOUND', 'Employee not found');
   }
 
-  return toEmployeeDetailDto(employee, contractCount);
+  return toEmployeeDetailDto(employee, contractCount, attendanceCount);
 }
 
 export async function getCurrentEmployee(
@@ -149,12 +150,13 @@ export async function getCurrentEmployee(
     );
   }
 
-  const [employee, contractCount] = await Promise.all([
+  const [employee, contractCount, attendanceCount] = await Promise.all([
     prisma.employee.findUnique({
       where: { id: requestingUser.employeeId },
       include: employeeDetailIncludes,
     }),
     prisma.contract.count({ where: { employeeId: requestingUser.employeeId } }),
+    prisma.attendance.count({ where: { employeeId: requestingUser.employeeId } }),
   ]);
 
   if (!employee) {
@@ -165,7 +167,7 @@ export async function getCurrentEmployee(
     );
   }
 
-  return toEmployeeDetailDto(employee, contractCount);
+  return toEmployeeDetailDto(employee, contractCount, attendanceCount);
 }
 
 export async function createEmployee(

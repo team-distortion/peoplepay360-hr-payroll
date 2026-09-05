@@ -181,6 +181,15 @@ function App() {
           />
 
           <Route
+            path="/attendance/new"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR_MANAGER', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER']}>
+                <AttendanceDetail />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/attendance/:id"
             element={
               <ProtectedRoute>

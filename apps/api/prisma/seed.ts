@@ -8,6 +8,7 @@ import {
   WorkingScheduleType,
   SalaryRuleCategory,
   SalaryRuleMethod,
+  AttendanceStatus,
   Prisma,
 } from '@prisma/client';
 import argon2 from 'argon2';
@@ -655,8 +656,195 @@ async function main() {
     });
   }
 
+  console.log('Seeding Attendance records...');
+
+  const hrManagerUser = await prisma.user.findUnique({
+    where: { email: 'hr.manager@peoplepay360.dev' },
+  });
+  const adminUser = await prisma.user.findUnique({
+    where: { email: 'admin@peoplepay360.dev' },
+  });
+
+  const attendanceRecords = [
+    // 1. Present, on-time completed day (Aarav, Monday 2026-08-24)
+    {
+      employeeId: aarav.id,
+      attendanceDate: new Date('2026-08-24T00:00:00.000Z'),
+      checkInAt: new Date('2026-08-24T03:30:00.000Z'), // 09:00 IST
+      checkOutAt: new Date('2026-08-24T12:30:00.000Z'), // 18:00 IST
+      status: AttendanceStatus.PRESENT,
+      workedMinutes: 480,
+      overtimeMinutes: 0,
+      workingScheduleId: standardSchedule.id,
+      expectedStartMinute: 540,
+      expectedEndMinute: 1080,
+      expectedBreakMinutes: 60,
+      expectedMinutes: 480,
+      manuallyEdited: false,
+      lastEditedByUserId: null,
+      lastEditedAt: null,
+    },
+    // 2. Late completed day (Priya, Tuesday 2026-08-25)
+    {
+      employeeId: priya.id,
+      attendanceDate: new Date('2026-08-25T00:00:00.000Z'),
+      checkInAt: new Date('2026-08-25T03:45:00.000Z'), // 09:15 IST (Late)
+      checkOutAt: new Date('2026-08-25T12:45:00.000Z'), // 18:15 IST
+      status: AttendanceStatus.LATE,
+      workedMinutes: 480,
+      overtimeMinutes: 0,
+      workingScheduleId: standardSchedule.id,
+      expectedStartMinute: 540,
+      expectedEndMinute: 1080,
+      expectedBreakMinutes: 60,
+      expectedMinutes: 480,
+      manuallyEdited: false,
+      lastEditedByUserId: null,
+      lastEditedAt: null,
+    },
+    // 3. Open record with Missing Check-Out (Kabir, Wednesday 2026-08-26)
+    {
+      employeeId: kabir.id,
+      attendanceDate: new Date('2026-08-26T00:00:00.000Z'),
+      checkInAt: new Date('2026-08-26T04:30:00.000Z'), // 10:00 IST
+      checkOutAt: null,
+      status: AttendanceStatus.PRESENT,
+      workedMinutes: 0,
+      overtimeMinutes: 0,
+      workingScheduleId: flexibleSchedule.id,
+      expectedStartMinute: 600,
+      expectedEndMinute: 1020,
+      expectedBreakMinutes: 30,
+      expectedMinutes: 390,
+      manuallyEdited: false,
+      lastEditedByUserId: null,
+      lastEditedAt: null,
+    },
+    // 4. Completed Overtime day (Vikram, Thursday 2026-08-27)
+    {
+      employeeId: vikram.id,
+      attendanceDate: new Date('2026-08-27T00:00:00.000Z'),
+      checkInAt: new Date('2026-08-27T04:00:00.000Z'), // 09:30 IST
+      checkOutAt: new Date('2026-08-27T13:30:00.000Z'), // 19:00 IST (570m - 30m = 540m worked, 540 - 390 = 150m OT)
+      status: AttendanceStatus.PRESENT,
+      workedMinutes: 540,
+      overtimeMinutes: 150,
+      workingScheduleId: flexibleSchedule.id,
+      expectedStartMinute: 600,
+      expectedEndMinute: 1020,
+      expectedBreakMinutes: 30,
+      expectedMinutes: 390,
+      manuallyEdited: false,
+      lastEditedByUserId: null,
+      lastEditedAt: null,
+    },
+    // 5. Manually created Absent expected day (Sara, Friday 2026-08-28)
+    {
+      employeeId: sara.id,
+      attendanceDate: new Date('2026-08-28T00:00:00.000Z'),
+      checkInAt: null,
+      checkOutAt: null,
+      status: AttendanceStatus.ABSENT,
+      workedMinutes: 0,
+      overtimeMinutes: 0,
+      workingScheduleId: flexibleSchedule.id,
+      expectedStartMinute: 600,
+      expectedEndMinute: 1020,
+      expectedBreakMinutes: 30,
+      expectedMinutes: 390,
+      manuallyEdited: true,
+      lastEditedByUserId: hrManagerUser?.id ?? null,
+      lastEditedAt: new Date('2026-08-28T09:00:00.000Z'),
+    },
+    // 6. Manually corrected worked record (Aarav, Friday 2026-08-28)
+    {
+      employeeId: aarav.id,
+      attendanceDate: new Date('2026-08-28T00:00:00.000Z'),
+      checkInAt: new Date('2026-08-28T03:30:00.000Z'), // 09:00 IST
+      checkOutAt: new Date('2026-08-28T12:30:00.000Z'), // 18:00 IST
+      status: AttendanceStatus.PRESENT,
+      workedMinutes: 480,
+      overtimeMinutes: 0,
+      workingScheduleId: standardSchedule.id,
+      expectedStartMinute: 540,
+      expectedEndMinute: 1080,
+      expectedBreakMinutes: 60,
+      expectedMinutes: 480,
+      manuallyEdited: true,
+      lastEditedByUserId: adminUser?.id ?? null,
+      lastEditedAt: new Date('2026-08-28T13:00:00.000Z'),
+    },
+    // 7. Non-working-day worked record (Aarav, Saturday 2026-08-29)
+    {
+      employeeId: aarav.id,
+      attendanceDate: new Date('2026-08-29T00:00:00.000Z'),
+      checkInAt: new Date('2026-08-29T04:30:00.000Z'), // 10:00 IST
+      checkOutAt: new Date('2026-08-29T08:30:00.000Z'), // 14:00 IST (240m elapsed, 240m worked, 240m OT)
+      status: AttendanceStatus.PRESENT,
+      workedMinutes: 240,
+      overtimeMinutes: 240,
+      workingScheduleId: standardSchedule.id,
+      expectedStartMinute: null,
+      expectedEndMinute: null,
+      expectedBreakMinutes: 0,
+      expectedMinutes: 0,
+      manuallyEdited: false,
+      lastEditedByUserId: null,
+      lastEditedAt: null,
+    },
+  ];
+
+  for (const att of attendanceRecords) {
+    await prisma.attendance.upsert({
+      where: {
+        employeeId_attendanceDate: {
+          employeeId: att.employeeId,
+          attendanceDate: att.attendanceDate,
+        },
+      },
+      update: att,
+      create: att,
+    });
+  }
+
+  // Seed correction audit event for the manually edited demo record
+  const editedRecord = await prisma.attendance.findUnique({
+    where: {
+      employeeId_attendanceDate: {
+        employeeId: aarav.id,
+        attendanceDate: new Date('2026-08-28T00:00:00.000Z'),
+      },
+    },
+  });
+  if (editedRecord && adminUser) {
+    const existingAudit = await prisma.auditLog.findFirst({
+      where: {
+        entityType: 'ATTENDANCE',
+        entityId: editedRecord.id,
+        action: 'ATTENDANCE_CORRECTED',
+      },
+    });
+    if (!existingAudit) {
+      await prisma.auditLog.create({
+        data: {
+          actorId: adminUser.id,
+          action: 'ATTENDANCE_CORRECTED',
+          entityType: 'ATTENDANCE',
+          entityId: editedRecord.id,
+          before: Prisma.JsonNull,
+          after: {
+            id: editedRecord.id,
+            reason: 'Adjusted check-in time after biometric device sync issue',
+          },
+        },
+      });
+    }
+  }
+
   console.log('Seed completed successfully.');
-  console.log('Created/updated: 3 schedules, 5 departments, 8 employees, 5 users, 1 salary structure with 7 rules, 3 contracts.');
+  console.log(
+    'Created/updated: 3 schedules, 5 departments, 8 employees, 5 users, 1 salary structure with 7 rules, 3 contracts, 7 attendance records.'
+  );
   console.log(`Development login password: ${DEV_PASSWORD}`);
 }
 

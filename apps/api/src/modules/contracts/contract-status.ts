@@ -1,4 +1,5 @@
 import type { ContractStatus } from '@peoplepay360/shared';
+import { getCompanyBusinessDate } from '../attendance/attendance-clock.js';
 
 export interface ContractStatusEvaluation {
   status: ContractStatus;
@@ -6,7 +7,7 @@ export interface ContractStatusEvaluation {
 }
 
 export function getCompanyTodayDateString(): string {
-  return new Date().toISOString().slice(0, 10);
+  return getCompanyBusinessDate(new Date());
 }
 
 export function evaluateContractStatus(

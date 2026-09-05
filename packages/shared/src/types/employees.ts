@@ -100,6 +100,7 @@ export interface EmployeeDetailDto extends EmployeeListItemDto {
   companyName: string;
   user: EmployeeLinkedUserSummary | null;
   contractCount?: number;
+  attendanceCount?: number;
   createdAt: string;
   updatedAt: string;
 }
