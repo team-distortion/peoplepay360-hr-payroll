@@ -5,23 +5,24 @@ change.
 
 ## Current Phase
 
-- [e.g. Not started / In progress / Complete]
+- In progress
 
 ## Current Goal
 
-- [What you are building right now]
+- Building the React Canvas flow interface and components
 
 ## Completed
 
-- None yet.
+- Initialized frontend with Vite, React, TS, Tailwind, shadcn/ui, and @xyflow/react
+- Implemented the HR Portal Login Screen (/login route)
 
 ## In Progress
 
-- None yet.
+- Developing the Canvas UI and custom nodes
 
 ## Next Up
 
-- [First unit to build]
+- Implementation of custom Stripe-like nodes and layout components
 
 ## Open Questions
 
