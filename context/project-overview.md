@@ -21,9 +21,9 @@ record acts as the central hub, related Contracts and Working Schedules provide 
 context, Attendance and Time Off capture day-to-day HR activity, Salary Structures and 
 Rules define salary computation, and Payruns turn eligible employee records into 
 validated payslips that can be printed as PDF and sent to employees. 
-Teams are free to use any programming language, framework, or database technology to 
-build this solution. The focus is on the business logic, data relationships, payroll 
-calculation flow, and end-to-end user experience, not on any specific platform or vendor. 
+frontend - React / Next.js, Tailwind CSS, shadcn/ui General CRM UI, @xyflow/react Canvas, Lucide Icons  Inter Typography
+
+ 
 
 ---
 
@@ -167,7 +167,6 @@ calculation flow, and end-to-end user experience, not on any specific platform o
 ---
 ## Data Architecture
 
-Note: neither source names a database or schema — PDF Section 7 explicitly leaves "backend language, frontend framework, and database technology" to the team. What follows is the entity/relationship structure actually specified across both documents, not a fixed schema.
 
 ### Core HR Entities
 - **Employee** — central record; department, manager, job position, work location, status, and an assigned Working Schedule
@@ -188,7 +187,7 @@ Note: neither source names a database or schema — PDF Section 7 explicitly lea
 
 ### User & Access *(mockup only — not in PDF)*
 - **User** — created by an Admin only, never self-registered; linked 1:1 to an Employee record; holds one or more Roles
-- **Role** — controls module/record/action visibility; the five roles are the ones PDF Section 3 defines (Employee, HR Manager, HR Payroll User, HR Payroll Manager, Admin)
+- **Role** — controls module/record/action visibility;  (Employee, HR Manager, HR Payroll User, HR Payroll Manager, Admin)
 
 ---
 
@@ -205,7 +204,7 @@ Note: neither source names a database or schema — PDF Section 7 explicitly lea
 - Payrun 2-step creation wizard (scope → employee selection), created only after final confirmation
 - Payrun processing screen: Compute, Validate, Mark Paid, Send Payslips
 - Payslip detail screen with full rule-by-rule computation breakdown
-- Global Payslips list, independent of any single Payrun (PDF B7 confirms this, not mockup-only)
+- Global Payslips list, independent of any single Payrun 
 - Payslip PDF generation and bulk email delivery from the Payrun
 - Admin-managed user accounts linked to employee records, with role assignment *(mockup only)*
 - Attendance quick-action check-in/check-out widget with elapsed-time display *(mockup only)*
@@ -232,11 +231,11 @@ Everything below is *not mentioned in either document* — treat this as a reaso
 
 ## Historical Tracking & Auditability
 
-Neither document names an analytics/event-tracking tool (nothing like PostHog appears anywhere) — Section 7 leaves this open along with the rest of the stack. What both sources do explicitly require retained as history:
+Neither document names an analytics/event-tracking tool (nothing like PostHog appears anywhere) — 
 
-- Finalized/paid Payruns "remain available as historical data" (mockup) / "preserved as historical records" (PDF B6)
+- Finalized/paid Payruns "remain available as historical data" (mockup) / "preserved as historical records" 
 - Expired contracts stay visible in the Contracts list rather than being removed (mockup: "retain contract history... make the active Running contract obvious")
-- "Comprehensive historical payroll tracking" is named directly as a system-architecture goal (PDF Section 6)
+- "Comprehensive historical payroll tracking" is named directly as a system-architecture goal 
 - Attendance data must remain "usable later for reporting/dashboard insights" (mockup)
 
 ---
@@ -255,8 +254,6 @@ Neither document names an analytics/event-tracking tool (nothing like PostHog ap
 ## Success Criteria
 
 - A fully operational platform populated with representative employee, contract, time, salary, and payroll data — not a static mockup
-- A 5-minute live walkthrough covering two end-to-end scenarios: employee-to-payslip, and leave allocation-to-request
-- A brief written summary of proposed future enhancements
 - Payroll correctly resolves the period-applicable contract even when an employee has contract history
 - Approved leave correctly consumes the linked Allocation's balance
 - Salary Rules execute in sequence so later totals (Net) correctly build on earlier ones (Gross)
