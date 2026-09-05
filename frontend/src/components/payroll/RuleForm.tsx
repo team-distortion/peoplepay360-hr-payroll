@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Trash2, HelpCircle } from 'lucide-react';
-import type { SalaryRule, RuleCategory, ComputationType } from './mockData';
+import { ArrowLeft, Trash2, Check } from 'lucide-react';
+import type { SalaryRule, RuleCategory, ComputationMode, SalaryStructure } from './mockData';
 
 interface Props {
   rules: SalaryRule[];
+  structures?: SalaryStructure[];
   onSave: (rule: SalaryRule) => void;
   onDelete: (id: string) => void;
 }
 
 const CATEGORIES: RuleCategory[] = ['Basic', 'Allowance', 'Deduction', 'Gross', 'Net'];
+const COMPUTATION_MODES: ComputationMode[] = ['Fixed Amount', 'Percentage of Wage', 'Python Code'];
 
-export default function RuleForm({ rules, onSave, onDelete }: Props) {
+export default function RuleForm({ rules, structures = [], onSave, onDelete }: Props) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const isNew = id === 'new';
@@ -20,31 +22,41 @@ export default function RuleForm({ rules, onSave, onDelete }: Props) {
   const [name, setName] = useState(existing?.name ?? '');
   const [code, setCode] = useState(existing?.code ?? '');
   const [category, setCategory] = useState<RuleCategory>(existing?.category ?? 'Basic');
-  const [sequence, setSequence] = useState(existing?.sequence ?? (rules.length + 1));
-  const [active, setActive] = useState(existing?.active ?? true);
-  const [computationType, setComputationType] = useState<ComputationType>(existing?.computationType ?? 'fixed');
-  const [fixedAmount, setFixedAmount] = useState<number | ''>(existing?.fixedAmount ?? 0);
+  const [sequence, setSequence] = useState<number | ''>(existing?.sequence ?? 10);
+  const [sortBy, setSortBy] = useState<number | ''>(existing?.sortBy ?? 1);
+  const [structureName, setStructureName] = useState(existing?.structureName ?? (structures[0]?.name || 'Regular Salary'));
+  const [computation, setComputation] = useState<ComputationMode>(existing?.computation ?? 'Fixed Amount');
+  const [amount, setAmount] = useState<number | ''>(existing?.amount ?? 0);
   const [percentage, setPercentage] = useState<number | ''>(existing?.percentage ?? 10);
-  const [percentageOfRuleId, setPercentageOfRuleId] = useState(existing?.percentageOfRuleId ?? (rules[0]?.id || ''));
-  const [formula, setFormula] = useState(existing?.formula ?? 'BASIC * 0.10');
+  const [pythonCode, setPythonCode] = useState(
+    existing?.pythonCode ?? "result = categories['BASIC']"
+  );
+  const [active, setActive] = useState(existing?.active ?? true);
 
-  const otherRules = rules.filter(r => r.id !== id);
+  // Derive numeric ID chip (e.g. #317 or #1)
+  const recordChip = isNew
+    ? '#NEW'
+    : `#${id?.replace(/\D/g, '') || Math.floor(Math.random() * 800 + 100)}`;
 
   const handleSave = () => {
     if (!name.trim() || !code.trim()) return;
+
+    const matchedStruct = structures.find(s => s.name === structureName);
 
     const saved: SalaryRule = {
       id: isNew ? `rule-${Date.now()}` : id!,
       name: name.trim(),
       code: code.trim().toUpperCase(),
       category,
-      sequence: Number(sequence) || 1,
+      structureId: matchedStruct?.id ?? (existing?.structureId || 'struct-1'),
+      structureName,
+      sequence: Number(sequence) || 10,
+      sortBy: Number(sortBy) || 1,
       active,
-      computationType,
-      fixedAmount: computationType === 'fixed' ? Number(fixedAmount) || 0 : undefined,
-      percentage: computationType === 'percentage' ? Number(percentage) || 0 : undefined,
-      percentageOfRuleId: computationType === 'percentage' ? percentageOfRuleId : undefined,
-      formula: computationType === 'formula' ? formula.trim() : undefined,
+      computation,
+      amount: computation === 'Fixed Amount' ? Number(amount) || 0 : undefined,
+      percentage: computation === 'Percentage of Wage' ? Number(percentage) || 0 : undefined,
+      pythonCode: computation === 'Python Code' ? pythonCode.trim() : undefined,
     };
 
     onSave(saved);
@@ -61,7 +73,7 @@ export default function RuleForm({ rules, onSave, onDelete }: Props) {
   return (
     <div className="flex flex-col flex-1 bg-surface/30 min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between px-8 py-4 bg-white border-b border-border">
+      <div className="flex items-center justify-between px-8 py-4 bg-white border-b border-border sticky top-14 z-10">
         <div className="flex items-center gap-4">
           <button
             onClick={() => navigate('/payroll/rules')}
@@ -70,21 +82,35 @@ export default function RuleForm({ rules, onSave, onDelete }: Props) {
             <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
           </button>
           <div>
-            <h2 className="text-xl font-display font-semibold text-navy">
-              {isNew ? 'New Salary Rule' : `Salary Rule / ${name || existing?.name}`}
-            </h2>
-            <p className="text-xs text-mutedText mt-0.5">
-              {isNew ? 'Configure a new computation rule for salary structures.' : `Rule Code: ${code}`}
-            </p>
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 text-[11px] font-mono font-semibold bg-surface text-slate border border-border rounded">
+                {recordChip}
+              </span>
+              <h1 className="text-xl font-display font-semibold text-navy">
+                {isNew ? 'New Salary Rule' : `Salary Rule / ${name || existing?.name}`}
+              </h1>
+            </div>
+            <p className="text-xs text-mutedText mt-0.5">Form view</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setActive(!active)}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${
+              active
+                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                : 'bg-gray-50 text-gray-500 border-gray-200'
+            }`}
+          >
+            {active ? 'Active' : 'Inactive'}
+          </button>
           {!isNew && (
             <button
               type="button"
               onClick={handleDelete}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 border border-red-200 rounded-md transition-colors"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 border border-red-200 rounded-md transition-colors"
             >
               <Trash2 size={14} />
               Delete
@@ -101,214 +127,248 @@ export default function RuleForm({ rules, onSave, onDelete }: Props) {
             type="button"
             onClick={handleSave}
             disabled={!name.trim() || !code.trim()}
-            className="px-4 py-1.5 text-xs font-medium text-white bg-accent hover:bg-accent/90 rounded-md shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-5 py-1.5 text-xs font-medium text-white bg-accent hover:bg-[#4a42d8] rounded-md shadow-sm transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Save
           </button>
         </div>
       </div>
 
-      {/* Form Content */}
-      <div className="max-w-4xl w-full mx-auto px-8 py-8 space-y-6">
-        {/* Main Details Card */}
-        <div className="bg-white rounded-lg border border-border p-6 shadow-sm">
-          <h3 className="text-sm font-semibold text-navy mb-4 uppercase tracking-wider">General Information</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-xs font-medium text-slate mb-1">
-                Rule Name <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="e.g. Basic Salary"
-                className="w-full px-3 py-2 bg-surface/40 border border-border rounded-md text-sm text-navy focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate mb-1">
-                Rule Code <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={code}
-                onChange={e => setCode(e.target.value.toUpperCase())}
-                placeholder="e.g. BASIC"
-                className="w-full px-3 py-2 bg-surface/40 border border-border rounded-md text-sm font-mono text-navy focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate mb-1">Category</label>
-              <select
-                value={category}
-                onChange={e => setCategory(e.target.value as RuleCategory)}
-                className="w-full px-3 py-2 bg-surface/40 border border-border rounded-md text-sm text-navy focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
-              >
-                {CATEGORIES.map(cat => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate mb-1">Sequence Order</label>
-              <input
-                type="number"
-                value={sequence}
-                onChange={e => setSequence(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-surface/40 border border-border rounded-md text-sm text-navy focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
-              />
-            </div>
-
-            <div className="md:col-span-2 flex items-center justify-between pt-2 border-t border-border/50">
+      {/* Main Content */}
+      <div className="max-w-5xl w-full mx-auto px-8 py-8 space-y-6">
+        {/* Two-Column Form Layout */}
+        <div className="bg-white rounded-xl border border-border p-6 shadow-sm">
+          <h2 className="text-xs font-semibold text-slate uppercase tracking-wider mb-5">Rule Properties</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-5">
+            {/* Left Column */}
+            <div className="space-y-4">
               <div>
-                <span className="text-sm font-medium text-navy">Active Status</span>
-                <p className="text-xs text-mutedText">Inactive rules will not be included in calculations.</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActive(!active)}
-                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  active ? 'bg-accent' : 'bg-gray-200'
-                }`}
-              >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    active ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Computation Method Card */}
-        <div className="bg-white rounded-lg border border-border p-6 shadow-sm">
-          <h3 className="text-sm font-semibold text-navy mb-4 uppercase tracking-wider">Computation Method</h3>
-
-          {/* Segmented Type Control */}
-          <div className="flex p-1 bg-surface rounded-lg border border-border/70 max-w-md mb-6">
-            <button
-              type="button"
-              onClick={() => setComputationType('fixed')}
-              className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
-                computationType === 'fixed'
-                  ? 'bg-white text-navy shadow-sm border border-border/60'
-                  : 'text-slate hover:text-navy'
-              }`}
-            >
-              Fixed Amount
-            </button>
-            <button
-              type="button"
-              onClick={() => setComputationType('percentage')}
-              className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
-                computationType === 'percentage'
-                  ? 'bg-white text-navy shadow-sm border border-border/60'
-                  : 'text-slate hover:text-navy'
-              }`}
-            >
-              Percentage (%)
-            </button>
-            <button
-              type="button"
-              onClick={() => setComputationType('formula')}
-              className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-all ${
-                computationType === 'formula'
-                  ? 'bg-white text-navy shadow-sm border border-border/60'
-                  : 'text-slate hover:text-navy'
-              }`}
-            >
-              Formula / Expression
-            </button>
-          </div>
-
-          {/* Type: Fixed */}
-          {computationType === 'fixed' && (
-            <div className="max-w-md">
-              <label className="block text-xs font-medium text-slate mb-1">Fixed Amount ($)</label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate text-sm">$</span>
+                <label className="block text-xs font-medium text-slate mb-1">
+                  Rule Name <span className="text-red-500">*</span>
+                </label>
                 <input
-                  type="number"
-                  step="any"
-                  value={fixedAmount}
-                  onChange={e => setFixedAmount(e.target.value === '' ? '' : Number(e.target.value))}
-                  className="w-full pl-8 pr-3 py-2 bg-surface/40 border border-border rounded-md text-sm text-navy focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent font-mono"
-                  placeholder="0.00"
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="e.g. Basic Salary"
+                  className="w-full px-3.5 py-2 bg-surface/40 border border-border rounded-md text-sm text-navy focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
                 />
               </div>
-              <p className="text-xs text-mutedText mt-1">This exact amount will be applied to the salary slip.</p>
-            </div>
-          )}
 
-          {/* Type: Percentage */}
-          {computationType === 'percentage' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-lg">
               <div>
-                <label className="block text-xs font-medium text-slate mb-1">Percentage (%)</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    step="any"
-                    value={percentage}
-                    onChange={e => setPercentage(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="w-full pr-8 pl-3 py-2 bg-surface/40 border border-border rounded-md text-sm text-navy focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent font-mono"
-                    placeholder="10"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate text-sm">%</span>
-                </div>
+                <label className="block text-xs font-medium text-slate mb-1">
+                  Code <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={code}
+                  onChange={e => setCode(e.target.value.toUpperCase())}
+                  placeholder="e.g. BASIC01"
+                  className="w-full px-3.5 py-2 bg-surface/40 border border-border rounded-md text-sm font-mono text-navy focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
+                />
               </div>
+
               <div>
-                <label className="block text-xs font-medium text-slate mb-1">% of Rule</label>
+                <label className="block text-xs font-medium text-slate mb-1">Category</label>
                 <select
-                  value={percentageOfRuleId}
-                  onChange={e => setPercentageOfRuleId(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface/40 border border-border rounded-md text-sm text-navy focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
+                  value={category}
+                  onChange={e => setCategory(e.target.value as RuleCategory)}
+                  className="w-full px-3.5 py-2 bg-surface/40 border border-border rounded-md text-sm text-navy focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
                 >
-                  {otherRules.map(r => (
-                    <option key={r.id} value={r.id}>
-                      {r.name} ({r.code})
+                  {CATEGORIES.map(cat => (
+                    <option key={cat} value={cat}>
+                      {cat}
                     </option>
                   ))}
                 </select>
               </div>
-            </div>
-          )}
 
-          {/* Type: Formula */}
-          {computationType === 'formula' && (
-            <div className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-slate mb-1">Python / Math Expression</label>
-                <textarea
-                  rows={4}
-                  value={formula}
-                  onChange={e => setFormula(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface/50 font-mono text-sm border border-border rounded-md text-navy focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
-                  placeholder="e.g. BASIC + HRA + STD - PF"
+                <label className="block text-xs font-medium text-slate mb-1">Sequence</label>
+                <input
+                  type="number"
+                  value={sequence}
+                  onChange={e => setSequence(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+                  placeholder="e.g. 1"
+                  className="w-full px-3.5 py-2 bg-surface/40 border border-border rounded-md text-sm font-mono text-navy focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
+                />
+                <span className="text-[11px] text-mutedText mt-0.5 block">Order within the parent Structure</span>
+              </div>
+            </div>
+
+            {/* Right Column */}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate mb-1">Salary Structure</label>
+                <select
+                  value={structureName}
+                  onChange={e => setStructureName(e.target.value)}
+                  className="w-full px-3.5 py-2 bg-surface/40 border border-border rounded-md text-sm text-navy focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
+                >
+                  {structures.length > 0 ? (
+                    structures.map(s => (
+                      <option key={s.id} value={s.name}>
+                        {s.name}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      <option value="Regular Salary">Regular Salary</option>
+                      <option value="Sales Salary">Sales Salary</option>
+                      <option value="Contractor">Contractor</option>
+                    </>
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate mb-1">Computation</label>
+                <select
+                  value={computation}
+                  onChange={e => setComputation(e.target.value as ComputationMode)}
+                  className="w-full px-3.5 py-2 bg-surface/40 border border-border rounded-md text-sm text-navy font-medium focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
+                >
+                  {COMPUTATION_MODES.map(mode => (
+                    <option key={mode} value={mode}>
+                      {mode}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate mb-1">Sort By</label>
+                <input
+                  type="number"
+                  value={sortBy}
+                  onChange={e => setSortBy(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+                  placeholder="e.g. 1"
+                  className="w-full px-3.5 py-2 bg-surface/40 border border-border rounded-md text-sm font-mono text-navy focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
+                />
+                <span className="text-[11px] text-mutedText mt-0.5 block">Display ordering in rules lists</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Computation options from the source section */}
+        <div className="bg-white rounded-xl border border-border p-6 shadow-sm space-y-4">
+          <div>
+            <h2 className="text-xs font-semibold text-slate uppercase tracking-wider">
+              Computation options from the source
+            </h2>
+            <p className="text-xs text-mutedText mt-0.5">
+              The active mode corresponds to the Computation selection above.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Panel 1: Fixed Amount */}
+            <div
+              onClick={() => setComputation('Fixed Amount')}
+              className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                computation === 'Fixed Amount'
+                  ? 'border-accent bg-accent/5 ring-1 ring-accent'
+                  : 'border-border bg-surface/30 hover:border-slate/40 opacity-70'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-navy">1. Fixed Amount</span>
+                {computation === 'Fixed Amount' && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-accent">
+                    <Check size={12} /> Active
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-mutedText mb-3">
+                Flat value applied every payrun regardless of wage.
+              </p>
+              <div>
+                <label className="block text-[11px] font-medium text-slate mb-1">Amount ($)</label>
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={e => setAmount(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                  disabled={computation !== 'Fixed Amount'}
+                  placeholder="e.g. 950000"
+                  className="w-full px-3 py-1.5 bg-white border border-border rounded text-xs font-mono text-navy focus:outline-none focus:ring-1 focus:ring-accent disabled:bg-gray-100 disabled:text-gray-400"
                 />
               </div>
+            </div>
 
-              <div className="p-3 bg-amber-50/70 border border-amber-200/80 rounded-md flex items-start gap-2.5 text-xs text-amber-900">
-                <HelpCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
-                <div>
-                  <span className="font-semibold">Available variables in formula:</span>
-                  <p className="mt-0.5 text-amber-800">
-                    Use rule codes such as <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">BASIC</code>,{' '}
-                    <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">HRA</code>,{' '}
-                    <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">GROSS</code>, or contract/attendance
-                    variables like <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">worked_days</code>.
-                  </p>
-                </div>
+            {/* Panel 2: Percentage of Wage */}
+            <div
+              onClick={() => setComputation('Percentage of Wage')}
+              className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                computation === 'Percentage of Wage'
+                  ? 'border-accent bg-accent/5 ring-1 ring-accent'
+                  : 'border-border bg-surface/30 hover:border-slate/40 opacity-70'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-navy">2. Percentage of Wage</span>
+                {computation === 'Percentage of Wage' && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-accent">
+                    <Check size={12} /> Active
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-mutedText mb-3">
+                Computed against the employee's wage (or referenced base rule).
+              </p>
+              <div>
+                <label className="block text-[11px] font-medium text-slate mb-1">Percentage (%)</label>
+                <input
+                  type="number"
+                  value={percentage}
+                  onChange={e => setPercentage(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                  disabled={computation !== 'Percentage of Wage'}
+                  placeholder="e.g. 10"
+                  className="w-full px-3 py-1.5 bg-white border border-border rounded text-xs font-mono text-navy focus:outline-none focus:ring-1 focus:ring-accent disabled:bg-gray-100 disabled:text-gray-400"
+                />
               </div>
             </div>
-          )}
+
+            {/* Panel 3: Python Code */}
+            <div
+              onClick={() => setComputation('Python Code')}
+              className={`p-4 rounded-lg border cursor-pointer transition-all ${
+                computation === 'Python Code'
+                  ? 'border-accent bg-accent/5 ring-1 ring-accent'
+                  : 'border-border bg-surface/30 hover:border-slate/40 opacity-70'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-navy">3. Python Code</span>
+                {computation === 'Python Code' && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-accent">
+                    <Check size={12} /> Active
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-mutedText mb-3">
+                Expression referencing other rules via <code>categories</code> dict.
+              </p>
+              <div>
+                <label className="block text-[11px] font-medium text-slate mb-1">Python Expression</label>
+                <textarea
+                  rows={2}
+                  value={pythonCode}
+                  onChange={e => setPythonCode(e.target.value)}
+                  disabled={computation !== 'Python Code'}
+                  placeholder="result = categories['BASIC']"
+                  className="w-full px-2.5 py-1.5 bg-white border border-border rounded text-xs font-mono text-navy focus:outline-none focus:ring-1 focus:ring-accent disabled:bg-gray-100 disabled:text-gray-400 resize-none"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Footnote */}
+          <div className="pt-2">
+            <p className="text-xs text-mutedText italic">
+              * A Salary Rule needs a clear computation method and category because these drive the final payslip.
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -78,13 +78,13 @@ export default function NewPayrunWizard({ structures, rules, onCreatePayrun }: P
 
       const lines: PayslipLine[] = structureRules.map(rule => {
         let amount = 0;
-        if (rule.computationType === 'fixed') {
-          amount = rule.fixedAmount ?? 0;
-        } else if (rule.computationType === 'percentage') {
+        if (rule.computation === 'Fixed Amount') {
+          amount = rule.amount ?? 0;
+        } else if (rule.computation === 'Percentage of Wage') {
           amount = ((rule.percentage ?? 0) / 100) * baseSalary;
         } else if (rule.code === 'GROSS') {
           amount = baseSalary * 1.35;
-        } else if (rule.code === 'NET') {
+        } else if (rule.code === 'NET' || rule.code === 'ALT') {
           amount = baseSalary * 1.15;
         }
 
