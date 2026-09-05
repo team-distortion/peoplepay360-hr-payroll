@@ -9,6 +9,13 @@ import Login from './pages/Login';
 import AdminUsers from './pages/AdminUsers';
 import EmployeesPage from './pages/Employees';
 import ContractsPage from './pages/Contracts';
+import SchedulesPage from './pages/Schedules';
+import AttendancePage from './pages/Attendance';
+import AttendanceDetail from './pages/AttendanceDetail';
+import TimeOffDashboard from './pages/time-off/TimeOffDashboard';
+import TimeOffRequests from './pages/time-off/TimeOffRequests';
+import TimeOffAllocations from './pages/time-off/TimeOffAllocations';
+import TimeOffTypes from './pages/time-off/TimeOffTypes';
 
 function CanvasFlow() {
   return (
@@ -80,6 +87,69 @@ function App() {
             element={
               <ProtectedRoute>
                 <ContractsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/schedules/*"
+            element={
+              <ProtectedRoute>
+                <SchedulesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/attendance"
+            element={
+              <ProtectedRoute>
+                <AttendancePage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/attendance/:id"
+            element={
+              <ProtectedRoute>
+                <AttendanceDetail />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/time-off"
+            element={
+              <ProtectedRoute>
+                <TimeOffDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/time-off/requests/*"
+            element={
+              <ProtectedRoute>
+                <TimeOffRequests />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/time-off/allocations/*"
+            element={
+              <ProtectedRoute>
+                <TimeOffAllocations />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/time-off/types/*"
+            element={
+              <ProtectedRoute>
+                <TimeOffTypes />
               </ProtectedRoute>
             }
           />

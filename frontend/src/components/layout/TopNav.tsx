@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Bell, LogOut } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import AttendanceWidget from '../attendance/AttendanceWidget';
 
 const Dropdown = ({ label, items, active }: { label: string; items: { label: string; path: string }[]; active: boolean }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -59,7 +60,10 @@ export default function TopNav() {
   const profileRef = useRef<HTMLDivElement>(null);
 
   const isEmployeesActive = location.pathname.startsWith('/employees');
+  const isSchedulesActive = location.pathname.startsWith('/schedules');
   const isContractsActive = location.pathname.startsWith('/contracts');
+  const isAttendanceActive = location.pathname.startsWith('/attendance');
+  const isTimeOffActive = location.pathname.startsWith('/time-off');
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -93,12 +97,12 @@ export default function TopNav() {
         <nav className="flex items-center gap-1">
           <Dropdown
             label="Employees"
-            active={isEmployeesActive}
+            active={isEmployeesActive || isSchedulesActive}
             items={[
               { label: 'Employees', path: '/employees' },
               { label: 'Contracts', path: '/contracts' },
               { label: 'Departments', path: '#' },
-              { label: 'Working Schedule', path: '#' },
+              { label: 'Working Schedule', path: '/schedules' },
             ]}
           />
           <Dropdown
@@ -107,17 +111,21 @@ export default function TopNav() {
             items={[{ label: 'All Contracts', path: '/contracts' }]}
           />
           <Link
-            to="#"
-            className="px-3 py-2 text-sm font-medium text-slate hover:bg-surface/50 hover:text-navy rounded-md transition-colors"
+            to="/attendance"
+            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              isAttendanceActive ? 'bg-surface text-navy' : 'text-slate hover:bg-surface/50 hover:text-navy'
+            }`}
           >
             Attendance
           </Link>
           <Dropdown
             label="Time Off"
-            active={false}
+            active={isTimeOffActive}
             items={[
-              { label: 'Overview', path: '#' },
-              { label: 'My Requests', path: '#' },
+              { label: 'Dashboard', path: '/time-off' },
+              { label: 'Time offs', path: '/time-off/requests' },
+              { label: 'Time off Types', path: '/time-off/types' },
+              { label: 'Allocations', path: '/time-off/allocations' },
             ]}
           />
           <Link
@@ -139,6 +147,7 @@ export default function TopNav() {
 
       {/* Right side */}
       <div className="flex items-center gap-3">
+        <AttendanceWidget />
         <button className="relative p-2 text-slate hover:bg-surface rounded-full transition-colors">
           <Bell className="w-5 h-5" />
           <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>

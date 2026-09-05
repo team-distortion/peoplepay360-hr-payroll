@@ -25,6 +25,16 @@ Update this file after every meaningful implementation change.
 - Vitest and Supertest integration testing suite
 - TypeScript strict compilation across all workspaces
 
+### Frontend Setup & UI Routes
+- Initialized frontend with Vite, React, TS, Tailwind, shadcn/ui, and `@xyflow/react`
+- Implemented the HR Portal Login Screen (`/login` route)
+- Implemented the Admin User Management UI (`/admin/users` route)
+- Implemented the Employee Dashboard UI (`/employees` route) with Kanban, List, and Profile views
+- Implemented the Contracts UI (`/contracts` route) with List and Detail views, including employee filtering
+- Implemented the Working Schedules UI (`/schedules` route) with List and Form views
+- Implemented the Attendance UI (`/attendance` route) with Global Widget, List, and Detail views
+- Implemented Time Off UI (`/time-off`) with Dashboard, Requests, Allocations, and Types views
+
 ### Authentication & Authorization (Backend Phase 1)
 - Prisma `User` model and `Role` enum added to `apps/api/prisma/schema.prisma`
 - PostgreSQL `session` table migration (`20260905133907_phase01_auth`) created and deployed to dev & test DBs
@@ -40,9 +50,9 @@ Update this file after every meaningful implementation change.
 - Connected frontend workspace (`frontend`) to `@peoplepay360/shared`
 - API client wrapper (`frontend/src/lib/api.ts`) with `credentials: 'include'` for PostgreSQL session cookies
 - Global `AuthContext` (`frontend/src/context/AuthContext.tsx`) managing `user`, `login`, `logout`, and auto-restoring sessions via `/api/v1/auth/me`
-- `ProtectedRoute` guard protecting routes (`/employees`, `/contracts`, `/admin/users`, `/flow`) and enforcing role permissions
+- `ProtectedRoute` guard protecting routes (`/employees`, `/contracts`, `/admin/users`, `/flow`, `/schedules`, `/attendance`, `/time-off`) and enforcing role permissions
 - Connected `Login.tsx` form with validation, error handling, loading states, and redirect logic
-- Updated `TopNav.tsx` displaying user email, role badge, and working Sign Out functionality
+- Updated `TopNav.tsx` displaying user email, role badge, working Sign Out functionality, and Attendance Widget
 - Configured Vite dev server proxy for `/api` -> `http://localhost:4000`
 
 ## In Progress
