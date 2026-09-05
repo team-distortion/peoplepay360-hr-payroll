@@ -15,7 +15,20 @@ const envSchema = z.object({
   CLIENT_ORIGIN: z.string().default('http://localhost:5173'),
   COMPANY_NAME: z.string().default('OXP Pvt Ltd'),
   COMPANY_CURRENCY: z.string().default('INR'),
-  COMPANY_TIMEZONE: z.string().default('Asia/Kolkata'),
+  COMPANY_TIMEZONE: z
+    .string()
+    .refine(
+      (tz) => {
+        try {
+          Intl.DateTimeFormat(undefined, { timeZone: tz });
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { message: 'COMPANY_TIMEZONE must be a valid IANA timezone string' }
+    )
+    .default('Asia/Kolkata'),
   SMTP_HOST: z.string().default('localhost'),
   SMTP_PORT: z.coerce.number().default(1025),
 });

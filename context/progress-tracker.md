@@ -163,3 +163,30 @@ Update this file after every meaningful implementation change.
 - Built `/contracts/new` and `/contracts/:id` create/detail/edit views with auto-filling suggestions from employee selection, effective schedule badge, decimal text wage input, and overlap conflict alerts.
 - Enabled Contracts smart button in `EmployeeDetail.tsx` displaying real contract counts from the database and navigating to the filtered contract list.
 - Updated `App.tsx` routes with role protection for `/contracts`, `/contracts/new`, and `/contracts/:id`.
+
+## Branch Updates - Phase 6 Attendance (`feature/phase06-attendance`)
+
+- Added `COMPANY_TIMEZONE` validation to `apps/api/src/config/env.ts` and created a tested company timezone clock utility (`apps/api/src/modules/attendance/attendance-clock.ts`) supporting injected clocks, IANA validation, business date extraction, minute of day, and weekday mapping across midnight boundaries.
+- Updated `getCompanyTodayDateString()` in contract status calculation to synchronize with the company timezone utility.
+- Added shared Attendance types, DTOs (`AttendanceDto`, `AttendanceTodayDto`, `AttendanceListResponse`), value sets (`AttendanceStatusValues`, `AttendanceFlagValues`, `AttendanceTodayStateValues`), and Zod validation schemas (`ManualAttendanceInputSchema`, `AttendanceCorrectionInputSchema`, `AttendanceListQuerySchema`) in `packages/shared/src/types/attendance.ts` and exported from `@peoplepay360/shared`.
+- Extended `EmployeeDetailDto` with optional `attendanceCount`.
+- Added Prisma `AttendanceStatus` enum and `Attendance` model to `apps/api/prisma/schema.prisma` with relations to Employee, WorkingSchedule, and User editor, alongside composite uniqueness on `(employeeId, attendanceDate)` and performance indexes.
+- Created and deployed migration `20260906020000_phase06_attendance` across dev and test databases with PostgreSQL check constraints enforcing non-negative minutes, valid expected minute clock arithmetic, strict punch order (`checkOutAt > checkInAt`), derived overtime formulas, status shapes (ABSENT with null timestamps and expected minutes > 0; PRESENT/LATE with checkInAt), and manual editor metadata integrity.
+- Implemented pure calculation engine (`attendance-calculation.ts`) deriving status, floored worked minutes, single break subtraction, daily overtime, display elapsed minutes, and flags in locked order (`OVERTIME`, `MISSING_CHECK_OUT`, `MANUALLY_EDITED`).
+- Implemented backend Attendance module (`apps/api/src/modules/attendance/`):
+  - `attendance.service.ts`: schedule resolution for single date (Contract override -> Employee fallback -> missing error), atomic self check-in/out with injected server clock, transactional `AuditLog` records (`ATTENDANCE_CHECKED_IN`, `ATTENDANCE_CHECKED_OUT`, `ATTENDANCE_MANUALLY_CREATED`, `ATTENDANCE_CORRECTED`), 5-role RBAC with unlinked user protection, manual creation/correction with mandatory reasons, and filtered list/detail queries.
+  - `attendance.mapper.ts`: DTO transformation and privacy field masking.
+  - `attendance.controller.ts` & `attendance.routes.ts`: Express routes with static `/me/*` routes mounted before `/:id`, mounted under `/api/v1/attendance`.
+  - Updated `employees.service.ts` and `employee-mapper.ts` to populate real `attendanceCount`.
+- Extended database seed script (`apps/api/prisma/seed.ts`) idempotently with representative attendance records for a fixed demo week (2026-08-24 to 2026-08-30) covering on-time present, late present, open with missing check-out, completed overtime, manually created absent, manually corrected, and non-working-day worked records.
+- Added comprehensive unit and integration test suites:
+  - `apps/api/tests/attendance-clock.test.ts` (7 tests passing) verifying IANA validation, midnight boundary conversions in IST, weekday mapping, and fixed clock advancement.
+  - `apps/api/tests/attendance-calculation.test.ts` (12 tests passing) verifying exact start, late threshold, non-working-day status, break subtraction, excess overtime, open record zero minutes, and flag ordering.
+  - `apps/api/tests/attendance.test.ts` (25 tests passing) verifying DB check constraints, 5-role RBAC matrix, self check-in/out lifecycle, unlinked account rejection, schedule snapshot precedence, concurrent punch conflict handling, snapshot invariance upon schedule changes, and manual audit trails. Full suite passing at 219/219 tests.
+- Built frontend API and TanStack Query hook layer (`frontend/src/features/attendance/`).
+- Connected navbar `AttendanceWidget` to real API (`/attendance/me/today`, `/me/check-in`, `/me/check-out`) with live elapsed timer advancing from server baseline, active state indicator, disabled double-punch protection, and unlinked account notice.
+- Refactored `/attendance` with URL query-param-backed search, status filter, flag filter, removable employee filter chip, pagination, and visual missing check-out badges (`AttendanceListTable.tsx`, `AttendanceToolbar.tsx`).
+- Refactored `/attendance/new` and `/attendance/:id` create/detail/correction view (`AttendanceDetail.tsx`) supporting manual creation with employee selector, date, WORKED/ABSENT toggles, required reason, read-only detail view for employees, and in-place correction for authorized HR roles.
+- Enabled real Attendance smart button on `EmployeeDetail.tsx` displaying database attendance count and deep-linking to filtered attendance list.
+- Configured `/attendance/new` route in `App.tsx` gated to HR/Admin roles before `/:id`.
+

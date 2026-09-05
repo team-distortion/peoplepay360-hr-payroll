@@ -312,11 +312,14 @@ export default function EmployeeDetailPage() {
                 </button>
                 <button
                   type="button"
-                  disabled
-                  title="Available after Attendance module"
-                  className="px-3 py-1 bg-surface text-slate/70 text-xs font-medium rounded-full border border-border cursor-not-allowed opacity-80"
+                  onClick={() => navigate(`/attendance?employeeId=${employee.id}`)}
+                  className="px-3 py-1 bg-white hover:bg-accent/10 hover:border-accent/40 text-navy hover:text-accent text-xs font-semibold rounded-full border border-border transition-all flex items-center gap-1.5 shadow-2xs"
+                  title="View attendance records for this employee"
                 >
-                  Attendance <span className="text-[10px] text-mutedText ml-1">(Available after Attendance)</span>
+                  <span>Attendance</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-surface text-[11px] font-mono border border-border text-slate">
+                    {employee.attendanceCount ?? 0}
+                  </span>
                 </button>
               </div>
             )}
