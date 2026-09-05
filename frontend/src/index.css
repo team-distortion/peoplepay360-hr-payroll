@@ -1,0 +1,58 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #FFFFFF;
+    --foreground: #0A2540;
+    
+    --surface: #F6F9FC;
+    --navy: #0A2540;
+    --slate: #425466;
+    --muted-text: #697386;
+    --border: #E3E8EE;
+    
+    --brand-accent: #635BFF;
+    --accent-soft: #EDECFF;
+    --gradient-end: #00D4FF;
+    
+    --success: #3ECF8E;
+    --error: #DF1B41;
+    --warning: #FFA940;
+
+    --card: #FFFFFF;
+    --card-foreground: #0A2540;
+    
+    --popover: #FFFFFF;
+    --popover-foreground: #0A2540;
+    
+    --primary: #0A2540;
+    --primary-foreground: #FFFFFF;
+    
+    --secondary: #F6F9FC;
+    --secondary-foreground: #0A2540;
+    
+    --muted: #F6F9FC;
+    --muted-foreground: #697386;
+    
+    --accent: #635BFF;
+    --accent-foreground: #FFFFFF;
+    
+    --destructive: #DF1B41;
+    --destructive-foreground: #FFFFFF;
+
+    --ring: #635BFF;
+    --radius: 1rem; /* soft rounded edges by default, maps to 16px */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
