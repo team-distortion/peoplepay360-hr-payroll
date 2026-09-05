@@ -4,18 +4,17 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Backend: Phase 0 — Foundation COMPLETE
-- Frontend: Initial UI & Canvas Flow Implementation IN PROGRESS
+- Backend: Phase 1 — Authentication & Authorization COMPLETE
+- Frontend: Authentication Integration & UI Routes COMPLETE
 
 ## Current Goal
 
-- Building the React Canvas flow interface and custom components (Frontend)
-- Connecting frontend components to backend APIs & preparing for Phase 1 Authentication (Backend)
+- Connecting remaining domain pages to backend APIs & implementing Phase 2 Employee Management & Contracts.
 
 ## Completed
 
 ### Backend & Monorepo Foundation
-- npm workspaces monorepo setup (`packages/*`, `apps/*`)
+- npm workspaces monorepo setup (`packages/*`, `apps/*`, `frontend`)
 - Shared package `@peoplepay360/shared` with standardized API contracts
 - API app `@peoplepay360/api` Express application structure (`app.ts`, `server.ts`)
 - Environment configuration with Zod validation (`src/config/env.ts`)
@@ -35,16 +34,36 @@ Update this file after every meaningful implementation change.
 - Implemented the Working Schedules UI (`/schedules` route) with List and Form views
 - Implemented the Attendance UI (`/attendance` route) with Global Widget, List, and Detail views
 - Implemented the Time Off UI module (`/time-off` routes) with Dashboard, Requests, Allocations, and Types views
+- Implemented Time Off UI (`/time-off`) with Dashboard, Requests, Allocations, and Types views
+
+### Authentication & Authorization (Backend Phase 1)
+- Prisma `User` model and `Role` enum added to `apps/api/prisma/schema.prisma`
+- PostgreSQL `session` table migration (`20260905133907_phase01_auth`) created and deployed to dev & test DBs
+- Database seed script (`apps/api/prisma/seed.ts`) creating 5 users (1 for each role) with Argon2 password hashing
+- Session management using `express-session` and `connect-pg-simple` store (`src/lib/session.ts`)
+- Authentication middleware (`src/middleware/authenticate.ts`) loading active principal from PostgreSQL
+- Role-based authorization middleware (`src/middleware/authorize.ts`) enforcing explicit role permissions
+- Employee ownership authorization helper (`src/lib/ownership.ts`)
+- Auth endpoints: `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout`
+- Complete integration test suite in `apps/api/tests/auth.test.ts` (18 auth tests passing, 23/23 total suite)
+
+### Frontend Integration & Auth Flow
+- Connected frontend workspace (`frontend`) to `@peoplepay360/shared`
+- API client wrapper (`frontend/src/lib/api.ts`) with `credentials: 'include'` for PostgreSQL session cookies
+- Global `AuthContext` (`frontend/src/context/AuthContext.tsx`) managing `user`, `login`, `logout`, and auto-restoring sessions via `/api/v1/auth/me`
+- `ProtectedRoute` guard protecting routes (`/employees`, `/contracts`, `/admin/users`, `/flow`, `/schedules`, `/attendance`, `/time-off`) and enforcing role permissions
+- Connected `Login.tsx` form with validation, error handling, loading states, and redirect logic
+- Updated `TopNav.tsx` displaying user email, role badge, working Sign Out functionality, and Attendance Widget
+- Configured Vite dev server proxy for `/api` -> `http://localhost:4000`
 
 ## In Progress
 
-- Developing the Canvas UI and custom nodes (Frontend)
+- Phase 2 — Employee Management & Contracts (Backend & Frontend)
 
 ## Next Up
 
-- Implementation of custom Stripe-like nodes and layout components
-- Connect frontend to backend APIs
-- Phase 1 — Authentication & Authorization (User model, session storage, Argon2 password hashing, RBAC middleware)
+- Implementation of Employee CRUD & Contract resolution backend APIs
+- Connecting Employees & Contracts UI components to backend endpoints
 
 ## Open Questions
 
@@ -52,15 +71,16 @@ Update this file after every meaningful implementation change.
 
 ## Architecture Decisions
 
-- Used npm workspaces for monorepo package isolation (`apps/api`, `packages/shared`, `apps/web`).
+- Used npm workspaces for monorepo package isolation (`apps/api`, `packages/shared`, `frontend`).
 - Decoupled Express app creation (`src/app.ts`) from server execution (`src/server.ts`) to enable clean testing via Supertest.
 - Enforced strict Zod schema parsing at application startup for environment variables.
 - Standardized API response format `{ data: ..., error: ... }` across all endpoints.
+- Enforced session regeneration (`req.session.regenerate`) on successful login to prevent session fixation attacks.
+- Returned identical generic 401 `INVALID_CREDENTIALS` error code and message for both missing user and invalid password to prevent account enumeration.
+- Enforced `credentials: 'include'` on frontend HTTP client so session cookie `connect.sid` is passed seamlessly.
 
 ## Session Notes
 
-- All Phase 0 backend tasks completed and verified with `npm run typecheck`, `npm run build`, and `npm test`.
-- Express API runs on port 4000 (`http://localhost:4000/api/v1/health`).
-- Frontend UI routes initialized with React Flow canvas development underway.
-
-
+- All Phase 1 backend tasks and integration tests completed and verified with `npm run typecheck`, `npm run build`, and `npm test` (23/23 tests passing, zero compilation errors).
+- Express API authentication & authorization endpoints active on port 4000.
+- Frontend dev server configured to proxy `/api` requests to backend API.

@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@peoplepay360/shared": "*",
     "@radix-ui/react-icons": "^1.3.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@xyflow/react": "^12.0.4",

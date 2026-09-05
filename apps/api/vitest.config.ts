@@ -5,5 +5,11 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    env: {
+      NODE_ENV: 'test',
+      DATABASE_URL:
+        process.env.TEST_DATABASE_URL ||
+        'postgresql://peoplepay360:peoplepay360@localhost:5432/peoplepay360?schema=test',
+    },
   },
 });

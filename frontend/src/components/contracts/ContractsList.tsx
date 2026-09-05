@@ -1,4 +1,3 @@
-import React from 'react';
 import { Contract } from '../../pages/Contracts';
 
 interface ContractsListProps {

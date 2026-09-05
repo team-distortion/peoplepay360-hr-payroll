@@ -1,5 +1,4 @@
-import React, { useState, useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useMemo } from 'react';
 import { Plus, Search, ChevronDown, ArrowLeft, Settings, X, Calendar as CalendarIcon, Clock, Briefcase } from 'lucide-react';
 import AppLayout from '../components/layout/AppLayout';
 
@@ -278,7 +277,7 @@ export default function SchedulesPage() {
                       </tr>
                     </thead>
                     <tbody className="text-sm text-navy divide-y divide-border">
-                      {formSchedule.days.map((day, idx) => {
+                      {formSchedule.days.map((day) => {
                         const dayHours = calculateDayHours(day);
                         return (
                           <tr key={day.id} className="hover:bg-surface/30 transition-colors group">
@@ -438,7 +437,7 @@ export default function SchedulesPage() {
                       </tr>
                     </thead>
                     <tbody className="text-sm text-navy divide-y divide-border">
-                      {filteredSchedules.map((schedule, idx) => (
+                      {filteredSchedules.map((schedule) => (
                         <tr 
                           key={schedule.id}
                           onClick={() => handleOpenDetail(schedule.id)}

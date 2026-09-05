@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import AttendanceToolbar from '../components/attendance/AttendanceToolbar';

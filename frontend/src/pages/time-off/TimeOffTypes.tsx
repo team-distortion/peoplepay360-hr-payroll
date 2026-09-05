@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Plus, Search, ArrowLeft, Settings, Info } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Plus, Search, ArrowLeft, Info } from 'lucide-react';
 import AppLayout from '../../components/layout/AppLayout';
 
 export interface TimeOffType {

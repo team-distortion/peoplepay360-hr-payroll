@@ -11,7 +11,7 @@ const envSchema = z.object({
   API_PORT: z.coerce.number().default(4000),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   TEST_DATABASE_URL: z.string().optional(),
-  SESSION_SECRET: z.string().default('replace-with-a-long-development-secret'),
+  SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
   CLIENT_ORIGIN: z.string().default('http://localhost:5173'),
   COMPANY_CURRENCY: z.string().default('INR'),
   COMPANY_TIMEZONE: z.string().default('Asia/Kolkata'),
