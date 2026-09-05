@@ -11,7 +11,7 @@ export function createSessionMiddleware() {
     store: new PgSession({
       pool: pgPool,
       tableName: 'session',
-      createTableIfMissing: false, // table is migration-managed
+      createTableIfMissing: true, // auto-create table if not present
     }),
     secret: env.SESSION_SECRET,
     resave: false,

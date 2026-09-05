@@ -64,6 +64,7 @@ export default function TopNav() {
   const isContractsActive = location.pathname.startsWith('/contracts');
   const isAttendanceActive = location.pathname.startsWith('/attendance');
   const isTimeOffActive = location.pathname.startsWith('/time-off');
+  const isPayrollActive = location.pathname.startsWith('/payroll');
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -128,12 +129,16 @@ export default function TopNav() {
               { label: 'Allocations', path: '/time-off/allocations' },
             ]}
           />
-          <Link
-            to="#"
-            className="px-3 py-2 text-sm font-medium text-slate hover:bg-surface/50 hover:text-navy rounded-md transition-colors"
-          >
-            Payroll
-          </Link>
+          <Dropdown
+            label="Payroll"
+            active={isPayrollActive}
+            items={[
+              { label: 'Payruns', path: '/payroll/payruns' },
+              { label: 'Payslips', path: '/payroll/payslips' },
+              { label: 'Salary Structures', path: '/payroll/structures' },
+              { label: 'Salary Rules', path: '/payroll/rules' },
+            ]}
+          />
           {user?.role === 'ADMIN' && (
             <Link
               to="/admin/users"
