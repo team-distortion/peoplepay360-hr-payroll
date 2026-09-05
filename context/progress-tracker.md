@@ -46,3 +46,4 @@ Update this file after every meaningful implementation change.
 
 - All Phase 0 tasks completed and verified with `npm run typecheck`, `npm run build`, and `npm test`.
 - Express API runs on port 4000 (`http://localhost:4000/api/v1/health`).
+
