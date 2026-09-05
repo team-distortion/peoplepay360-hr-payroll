@@ -11,9 +11,7 @@ approved requests, and payroll must transform all of that into understandable pa
 before payment. 
 
 ## Canonical Vocabulary
-
 Use these terms consistently in product copy, code discussions, tickets, and documentation:
-
 - **PeoplePay360** — the product name.
 - **User Account** — authentication identity used to sign in. Do not use “Employee” when referring to login credentials.
 - **Employee** — the central HR record. A User Account may be linked to an Employee.
@@ -108,6 +106,7 @@ locally deployable and does not depend on a hosted authentication provider.
 
 /admin/users                   → User management (Admin role)
 /admin/roles                   → Role & permission assignment
+```
 
 ---
 

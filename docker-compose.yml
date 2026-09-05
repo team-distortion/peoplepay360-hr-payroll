@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: peoplepay360-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: peoplepay360
+      POSTGRES_USER: peoplepay360
+      POSTGRES_PASSWORD: peoplepay360
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U peoplepay360 -d peoplepay360"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: peoplepay360-mailpit
+    restart: always
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+volumes:
+  postgres_data:
