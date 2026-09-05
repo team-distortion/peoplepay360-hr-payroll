@@ -17,9 +17,16 @@ export default function Login() {
     e.preventDefault();
     if (!isValid || isLoading) return;
 
-    const success = await login(email, password);
-    if (success) {
-      navigate(from, { replace: true });
+    const loggedInUser = await login(email, password);
+    if (loggedInUser) {
+      if (loggedInUser.role === 'EMPLOYEE') {
+        const dest = loggedInUser.employeeId
+          ? `/employees/${loggedInUser.employeeId}`
+          : '/employees/me';
+        navigate(dest, { replace: true });
+      } else {
+        navigate(from, { replace: true });
+      }
     }
   };
 

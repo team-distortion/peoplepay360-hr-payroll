@@ -15,15 +15,81 @@ enum Role {
   ADMIN
 }
 
+enum RecordStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum EmployeeType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+}
+
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
+  id           String    @id @default(uuid())
+  email        String    @unique
   passwordHash String
   role         Role
-  employeeId   String?  @unique
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  employeeId   String?   @unique
+  employee     Employee? @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Department {
+  id        String       @id @default(uuid())
+  name      String
+  nameKey   String       @unique
+  status    RecordStatus @default(ACTIVE)
+  employees Employee[]
+  createdAt DateTime     @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime     @updatedAt @db.Timestamptz(3)
+
+  @@index([status])
+}
+
+model Employee {
+  id                    String          @id @default(uuid())
+  employeeNumber        String          @unique
+  firstName             String
+  lastName              String
+  workEmail             String          @unique
+  workPhone             String?
+  jobPosition           String
+  employeeType          EmployeeType
+  status                RecordStatus    @default(ACTIVE)
+  workLocation          String?
+  departmentId          String?
+  managerId             String?
+  workingScheduleId     String?
+  personalEmail         String?
+  personalPhone         String?
+  dateOfBirth           DateTime?       @db.Date
+  personalAddress       String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  bankAccountName       String?
+  bankAccountNumber     String?
+  bankName              String?
+  bankIfsc              String?
+  createdAt             DateTime        @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime        @updatedAt @db.Timestamptz(3)
+
+  department      Department?       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  manager         Employee?         @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: Restrict)
+  directReports   Employee[]        @relation("EmployeeManager")
+  workingSchedule WorkingSchedule?  @relation(fields: [workingScheduleId], references: [id], onDelete: Restrict)
+  user            User?
+
+  @@index([departmentId])
+  @@index([managerId])
+  @@index([workingScheduleId])
+  @@index([status])
+  @@index([employeeType])
+  @@index([lastName, firstName, id])
 }
 
 enum WorkingScheduleType {
@@ -55,6 +121,7 @@ model WorkingSchedule {
   companyName String
   status      WorkingScheduleStatus @default(ACTIVE)
   days        WorkingScheduleDay[]
+  employees   Employee[]
   createdAt   DateTime              @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime              @updatedAt @db.Timestamptz(3)
 

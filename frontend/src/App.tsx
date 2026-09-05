@@ -8,6 +8,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import Login from './pages/Login';
 import AdminUsers from './pages/AdminUsers';
 import EmployeesPage from './pages/Employees';
+import EmployeeDetailPage from './pages/EmployeeDetail';
 import ContractsPage from './pages/Contracts';
 import SchedulesPage from './pages/Schedules';
 import ScheduleForm from './pages/ScheduleForm';
@@ -78,8 +79,26 @@ function App() {
           <Route
             path="/employees"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR_MANAGER', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER']}>
                 <EmployeesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/employees/new"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR_MANAGER', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER']}>
+                <EmployeeDetailPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/employees/:id"
+            element={
+              <ProtectedRoute>
+                <EmployeeDetailPage />
               </ProtectedRoute>
             }
           />

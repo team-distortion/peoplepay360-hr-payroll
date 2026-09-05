@@ -6,7 +6,7 @@ interface AuthContextType {
   user: CurrentUser | null;
   isLoading: boolean;
   error: string | null;
-  login: (email: string, password: string) => Promise<boolean>;
+  login: (email: string, password: string) => Promise<CurrentUser | null>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -37,7 +37,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     void fetchCurrentUser();
   }, [fetchCurrentUser]);
 
-  const login = async (email: string, password: string): Promise<boolean> => {
+  const login = async (email: string, password: string): Promise<CurrentUser | null> => {
     setIsLoading(true);
     setError(null);
 
@@ -51,18 +51,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(response.data);
         setError(null);
         setIsLoading(false);
-        return true;
+        return response.data;
       } else {
         setError(response.error?.message || 'Failed to sign in. Please check your credentials.');
         setUser(null);
         setIsLoading(false);
-        return false;
+        return null;
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An unexpected error occurred during sign in.');
       setUser(null);
       setIsLoading(false);
-      return false;
+      return null;
     }
   };
 

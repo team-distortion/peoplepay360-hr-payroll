@@ -1,4 +1,6 @@
-import { Search, LayoutGrid, List as ListIcon } from 'lucide-react';
+import { Search, LayoutGrid, List as ListIcon, Filter } from 'lucide-react';
+import { useDepartments } from '../../features/departments/departments.queries';
+import { EmployeeTypeValues, RecordStatusValues } from '@peoplepay360/shared';
 
 interface EmployeesToolbarProps {
   onNew: () => void;
@@ -6,6 +8,12 @@ interface EmployeesToolbarProps {
   setSearchQuery: (query: string) => void;
   view: 'kanban' | 'list';
   setView: (view: 'kanban' | 'list') => void;
+  statusFilter?: string;
+  setStatusFilter: (status?: string) => void;
+  departmentFilter?: string;
+  setDepartmentFilter: (deptId?: string) => void;
+  typeFilter?: string;
+  setTypeFilter: (type?: string) => void;
 }
 
 export default function EmployeesToolbar({
@@ -14,16 +22,70 @@ export default function EmployeesToolbar({
   setSearchQuery,
   view,
   setView,
+  statusFilter,
+  setStatusFilter,
+  departmentFilter,
+  setDepartmentFilter,
+  typeFilter,
+  setTypeFilter,
 }: EmployeesToolbarProps) {
+  const { data: departments = [] } = useDepartments();
+
   return (
-    <div className="flex items-center justify-between py-4 px-8 border-b border-border bg-white">
-      <div className="flex items-center gap-4">
+    <div className="flex flex-wrap items-center justify-between gap-4 py-4 px-8 border-b border-border bg-white">
+      <div className="flex items-center gap-3">
         <button
           onClick={onNew}
-          className="px-4 py-1.5 bg-accent text-white text-sm font-medium rounded-full hover:brightness-90 transition-all duration-200 ease-in-out active:scale-95 shadow-sm"
+          className="px-5 py-2 bg-accent text-white text-xs font-semibold rounded-full hover:brightness-90 transition-all duration-200 ease-in-out active:scale-95 shadow-sm uppercase tracking-wider"
         >
           NEW
         </button>
+
+        {/* Filter controls */}
+        <div className="flex items-center gap-2">
+          <Filter className="w-3.5 h-3.5 text-mutedText ml-2" />
+          {/* Department Filter */}
+          <select
+            value={departmentFilter || ''}
+            onChange={(e) => setDepartmentFilter(e.target.value || undefined)}
+            className="text-xs text-navy bg-surface border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-accent"
+          >
+            <option value="">All Departments</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+
+          {/* Employee Type Filter */}
+          <select
+            value={typeFilter || ''}
+            onChange={(e) => setTypeFilter(e.target.value || undefined)}
+            className="text-xs text-navy bg-surface border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-accent"
+          >
+            <option value="">All Employment Types</option>
+            {EmployeeTypeValues.map((type) => (
+              <option key={type} value={type}>
+                {type.replace('_', ' ')}
+              </option>
+            ))}
+          </select>
+
+          {/* Status Filter */}
+          <select
+            value={statusFilter || ''}
+            onChange={(e) => setStatusFilter(e.target.value || undefined)}
+            className="text-xs text-navy bg-surface border border-border rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-accent"
+          >
+            <option value="">All Statuses</option>
+            {RecordStatusValues.map((status) => (
+              <option key={status} value={status}>
+                {status}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="flex items-center gap-4">
@@ -34,7 +96,7 @@ export default function EmployeesToolbar({
             placeholder="Search employees..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 pr-4 py-1.5 text-sm rounded-full border border-border bg-surface w-64 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all"
+            className="pl-9 pr-4 py-1.5 text-sm rounded-full border border-border bg-surface w-64 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent transition-all placeholder:text-mutedText"
           />
         </div>
 

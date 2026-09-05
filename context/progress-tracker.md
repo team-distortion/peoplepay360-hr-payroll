@@ -4,12 +4,12 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Backend: Phase 1 — Authentication & Authorization COMPLETE
-- Frontend: Authentication Integration & UI Routes COMPLETE
+- Backend: Phase 3 — Employee Master COMPLETE
+- Frontend: Phase 3 — Employee Master COMPLETE
 
 ## Current Goal
 
-- Connecting remaining domain pages to backend APIs & implementing Phase 2 Employee Management & Contracts.
+- Proceeding to Phase 4 (Salary Configuration & Formula Engine) & connecting remaining domains.
 
 ## Completed
 
@@ -96,3 +96,19 @@ Update this file after every meaningful implementation change.
 - Integrated frontend with `@tanstack/react-query`, `react-hook-form`, `@hookform/resolvers`, and `zod`.
 - Connected `/schedules`, `/schedules/new`, and `/schedules/:id` to PostgreSQL API via TanStack Query and React Hook Form, replacing `DUMMY_SCHEDULES` and browser-authoritative duration calculations.
 - Protected all schedule frontend routes with role restrictions matching the API matrix.
+
+## Branch Updates - Phase 3 Employee Master (`feature/phase03-employee-master`)
+
+- Added `COMPANY_NAME` configuration to `.env.example`, `apps/api/.env`, and validated environment configuration (`apps/api/src/config/env.ts`).
+- Added shared Department and Employee types, DTOs, pure formatting helpers, and comprehensive Zod validation schemas (`packages/shared/src/types/employees.ts`) and exported from package barrel.
+- Added Prisma `RecordStatus` and `EmployeeType` enums, `Department` model, `Employee` model with self-referential reporting manager hierarchy, and converted `User.employeeId` placeholder strings to a real optional one-to-one foreign key with `ON DELETE SET NULL`.
+- Created and deployed migration `20260905183000_phase03_employee_master` with pre-FK placeholder cleanup, foreign keys, indexes, and PostgreSQL check constraints across development and test databases.
+- Updated database seed script (`apps/api/prisma/seed.ts`) idempotently in foreign-key-safe order: upserting schedules, departments (`Finance`, `HR`, `Engineering`, `Operations`), representative employees (`EMP001` Aarav Mehta, `EMP002` Sara Khan, `EMP003` John Dsouza, `EMP004` Neha Patel [ACTIVE]), linking managers, and linking the seeded Employee-role user to Aarav Mehta's real record.
+- Implemented backend Department module (`departments.service.ts`, `departments.controller.ts`, `departments.routes.ts`) with RBAC and active employee deactivation prevention.
+- Implemented backend Employee module (`manager-cycle.ts`, `employee-mapper.ts`, `employees.service.ts`, `employees.controller.ts`, `employees.routes.ts`) with reporting cycle prevention, active reference validation, record-level ownership checks for `EMPLOYEE` role, and privacy field omissions in list queries.
+- Updated auth test suite fixtures (`apps/api/tests/auth.test.ts`) to use real Department, Schedule, and Employee fixtures without weakening any assertions.
+- Added automated integration test suites for Departments (`tests/departments.test.ts`) and Employees (`tests/employees.test.ts`), verifying 76/76 passing tests across the entire test suite.
+- Implemented frontend TanStack Query API layers for departments and employees (`frontend/src/features/departments`, `frontend/src/features/employees`).
+- Refactored `/employees` with URL query-param-backed view toggle (Kanban/List), search, department filter, employee type filter, status filter, and real DTO binding.
+- Implemented `/employees/new` and `/employees/:id` with React Hook Form, live dropdown selectors, read-only/edit states, status confirmation toggle, disabled zero-state smart buttons (`Available after <module>`), and removed all mock employee and private data.
+- Configured frontend route protection, top navigation, and login redirects to ensure `EMPLOYEE` role users navigate to their own profile and are restricted from global employee lists.
