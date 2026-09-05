@@ -108,7 +108,6 @@ locally deployable and does not depend on a hosted authentication provider.
 
 /admin/users                   → User management (Admin role)
 /admin/roles                   → Role & permission assignment
-```
 
 ---
 
