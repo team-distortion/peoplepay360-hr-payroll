@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { ReactFlow, Background, Controls } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import Login from './pages/Login';
+import AdminUsers from './pages/AdminUsers';
+import EmployeesPage from './pages/Employees';
 
 function CanvasFlow() {
   return (
@@ -33,12 +35,17 @@ function CanvasFlow() {
   );
 }
 
+import ContractsPage from './pages/Contracts';
+
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/flow" element={<CanvasFlow />} />
+        <Route path="/admin/users" element={<AdminUsers />} />
+        <Route path="/employees" element={<EmployeesPage />} />
+        <Route path="/contracts/*" element={<ContractsPage />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>

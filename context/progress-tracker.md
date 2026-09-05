@@ -15,6 +15,9 @@ change.
 
 - Initialized frontend with Vite, React, TS, Tailwind, shadcn/ui, and @xyflow/react
 - Implemented the HR Portal Login Screen (/login route)
+- Implemented the Admin User Management UI (/admin/users route)
+- Implemented the Employee Dashboard UI (/employees route) with Kanban, List, and Profile views
+- Implemented the Contracts UI (/contracts route) with List and Detail views, including employee filtering
 
 ## In Progress
 
@@ -23,6 +26,7 @@ change.
 ## Next Up
 
 - Implementation of custom Stripe-like nodes and layout components
+- Connect frontend to backend APIs
 
 ## Open Questions
 

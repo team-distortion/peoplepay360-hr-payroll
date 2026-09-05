@@ -97,9 +97,6 @@ export default function Login() {
                 <p className="text-sm font-medium text-mutedText">
                   Accounts are created by an administrator.
                 </p>
-                <p className="text-xs text-mutedText/80 italic">
-                  After sign-in, show only the modules and actions allowed by the user's assigned role.
-                </p>
               </div>
             </div>
           </div>
