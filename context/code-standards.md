@@ -74,7 +74,7 @@
 
 ## File Organization
 
-- `apps/web/` - React application, pages, features, and reusable UI components.
+- `frontend/` - React application, pages, features, and reusable UI components.
 - `apps/api/` - Express routes, middleware, domain services, and API configuration.
 - `packages/shared/` - shared TypeScript types, enums, validation schemas, and API contracts.
 - `apps/api/prisma/` - Prisma schema, migrations, and seed data.
