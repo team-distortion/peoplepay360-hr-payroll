@@ -59,11 +59,13 @@ export default function TopNav() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
+  const isDashboardActive = location.pathname === '/dashboard';
   const isEmployeesActive = location.pathname.startsWith('/employees');
   const isSchedulesActive = location.pathname.startsWith('/schedules');
   const isContractsActive = location.pathname.startsWith('/contracts');
   const isAttendanceActive = location.pathname.startsWith('/attendance');
   const isTimeOffActive = location.pathname.startsWith('/time-off');
+  const isPayrollActive = location.pathname.startsWith('/payroll') || isDashboardActive;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -95,6 +97,14 @@ export default function TopNav() {
 
         {/* Navigation Links */}
         <nav className="flex items-center gap-1">
+          <Link
+            to="/dashboard"
+            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+              isDashboardActive ? 'bg-surface text-navy' : 'text-slate hover:bg-surface/50 hover:text-navy'
+            }`}
+          >
+            Dashboard
+          </Link>
           <Dropdown
             label="Employees"
             active={isEmployeesActive || isSchedulesActive}
@@ -128,12 +138,17 @@ export default function TopNav() {
               { label: 'Allocations', path: '/time-off/allocations' },
             ]}
           />
-          <Link
-            to="#"
-            className="px-3 py-2 text-sm font-medium text-slate hover:bg-surface/50 hover:text-navy rounded-md transition-colors"
-          >
-            Payroll
-          </Link>
+          <Dropdown
+            label="Payroll"
+            active={isPayrollActive}
+            items={[
+              { label: 'Payroll Dashboard', path: '/dashboard' },
+              { label: 'Salary Structures', path: '/payroll/structures' },
+              { label: 'Salary Rules', path: '/payroll/rules' },
+              { label: 'Pay Runs', path: '/payroll/payruns' },
+              { label: 'Payslips', path: '/payroll/payslips' },
+            ]}
+          />
           {user?.role === 'ADMIN' && (
             <Link
               to="/admin/users"

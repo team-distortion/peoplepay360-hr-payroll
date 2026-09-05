@@ -1,3 +1,4 @@
+
 import session from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
 import { Pool } from 'pg';
@@ -11,7 +12,7 @@ export function createSessionMiddleware() {
     store: new PgSession({
       pool: pgPool,
       tableName: 'session',
-      createTableIfMissing: false, // table is migration-managed
+      createTableIfMissing: true, // auto-create since migration SQL was not applied
     }),
     secret: env.SESSION_SECRET,
     resave: false,

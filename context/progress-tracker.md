@@ -5,11 +5,11 @@ Update this file after every meaningful implementation change.
 ## Current Phase
 
 - Backend: Phase 1 — Authentication & Authorization COMPLETE
-- Frontend: Authentication Integration & UI Routes COMPLETE
+- Frontend: Payroll Dashboard (`/dashboard`) COMPLETE
 
 ## Current Goal
 
-- Connecting remaining domain pages to backend APIs & implementing Phase 2 Employee Management & Contracts.
+- Install `recharts` (`npm install` in `frontend/`), then connect remaining domain pages to backend APIs & implement Phase 2 Employee Management & Contracts.
 
 ## Completed
 
@@ -34,7 +34,10 @@ Update this file after every meaningful implementation change.
 - Implemented the Working Schedules UI (`/schedules` route) with List and Form views
 - Implemented the Attendance UI (`/attendance` route) with Global Widget, List, and Detail views
 - Implemented the Time Off UI module (`/time-off` routes) with Dashboard, Requests, Allocations, and Types views
-- Implemented Time Off UI (`/time-off`) with Dashboard, Requests, Allocations, and Types views
+- Implemented the Payroll Dashboard UI (`/dashboard`) with Filter Bar, 5 KPI cards (animated count-up + stagger), Salary-by-Department bar chart, Monthly Salary Trend line chart, Payslip Status stacked bar + Payroll Alerts panel (deep-linked), Attendance Overview, Time Off Overview table, and Department Overview table — all panels with per-spec motion animations (§7)
+- Added `recharts ^2.12.7` to `frontend/package.json` (run `npm install` in `frontend/` to activate)
+- Added `/dashboard` route in `App.tsx` gated to `HR_PAYROLL_USER | HR_PAYROLL_MANAGER | ADMIN` roles; default wildcard redirect changed from `/employees` to `/dashboard`
+- Updated `TopNav.tsx`: added standalone "Dashboard" link; Payroll nav item converted from placeholder to full Dropdown with links to Dashboard, Structures, Rules, Pay Runs, Payslips
 
 ### Authentication & Authorization (Backend Phase 1)
 - Prisma `User` model and `Role` enum added to `apps/api/prisma/schema.prisma`
@@ -62,8 +65,10 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
+- Run `npm install` in `frontend/` to activate the `recharts` dependency
 - Implementation of Employee CRUD & Contract resolution backend APIs
 - Connecting Employees & Contracts UI components to backend endpoints
+- Phase 2 — Employee Management & Contracts (Backend)
 
 ## Open Questions
 
