@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Bell } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
+import { ChevronDown, Bell, LogOut } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 
-const Dropdown = ({ label, items, active, defaultPath }: { label: string, items: {label: string, path: string}[], active: boolean, defaultPath?: string }) => {
+const Dropdown = ({ label, items, active }: { label: string; items: { label: string; path: string }[]; active: boolean }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -36,7 +37,7 @@ const Dropdown = ({ label, items, active, defaultPath }: { label: string, items:
               to={item.path}
               onClick={() => setIsOpen(false)}
               className={`block px-4 py-2 text-sm ${
-                active && item.label === label // Mocking active state for submenu
+                active && item.label === label
                   ? 'bg-accent/10 text-accent font-medium'
                   : 'text-slate hover:bg-surface hover:text-navy'
               }`}
@@ -52,9 +53,28 @@ const Dropdown = ({ label, items, active, defaultPath }: { label: string, items:
 
 export default function TopNav() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   const isEmployeesActive = location.pathname.startsWith('/employees');
   const isContractsActive = location.pathname.startsWith('/contracts');
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border bg-white px-6 h-14 flex items-center justify-between">
@@ -64,6 +84,9 @@ export default function TopNav() {
           <div className="w-8 h-8 bg-navy rounded-md flex items-center justify-center">
             <span className="text-white font-bold text-sm">HR</span>
           </div>
+          <span className="font-display font-bold text-navy hidden sm:inline text-lg">
+            PeoplePay360
+          </span>
         </Link>
 
         {/* Navigation Links */}
@@ -81,9 +104,7 @@ export default function TopNav() {
           <Dropdown
             label="Contracts"
             active={isContractsActive}
-            items={[
-              { label: 'All Contracts', path: '/contracts' },
-            ]}
+            items={[{ label: 'All Contracts', path: '/contracts' }]}
           />
           <Link
             to="#"
@@ -105,15 +126,63 @@ export default function TopNav() {
           >
             Payroll
           </Link>
+          {user?.role === 'ADMIN' && (
+            <Link
+              to="/admin/users"
+              className="px-3 py-2 text-sm font-medium text-purple-600 hover:bg-purple-50 rounded-md transition-colors"
+            >
+              Admin Users
+            </Link>
+          )}
         </nav>
       </div>
 
       {/* Right side */}
-      <div className="flex items-center">
+      <div className="flex items-center gap-3">
         <button className="relative p-2 text-slate hover:bg-surface rounded-full transition-colors">
           <Bell className="w-5 h-5" />
           <span className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white"></span>
         </button>
+
+        {/* User Profile & Role Badge */}
+        {user && (
+          <div className="relative" ref={profileRef}>
+            <button
+              onClick={() => setIsProfileOpen(!isProfileOpen)}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-surface border border-transparent hover:border-border transition-colors"
+            >
+              <div className="w-7 h-7 bg-navy/10 text-navy rounded-full flex items-center justify-center font-bold text-xs">
+                {user.email.charAt(0).toUpperCase()}
+              </div>
+              <div className="hidden md:flex flex-col items-start text-xs">
+                <span className="font-semibold text-navy max-w-[120px] truncate">{user.email}</span>
+                <span className="text-[10px] uppercase font-bold text-accent tracking-wider">
+                  {user.role}
+                </span>
+              </div>
+              <ChevronDown className="w-3.5 h-3.5 text-slate" />
+            </button>
+
+            {isProfileOpen && (
+              <div className="absolute right-0 top-full mt-1 w-56 bg-white rounded-lg shadow-lg border border-border py-2 z-50">
+                <div className="px-4 py-2 border-b border-border">
+                  <p className="text-xs text-slate">Signed in as</p>
+                  <p className="text-sm font-medium text-navy truncate">{user.email}</p>
+                  <span className="inline-block mt-1 text-[10px] font-bold uppercase px-2 py-0.5 bg-accent/10 text-accent rounded">
+                    {user.role}
+                  </span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 font-medium transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );

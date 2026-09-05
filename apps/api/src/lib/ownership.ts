@@ -1,4 +1,4 @@
-import type { Role } from '@peoplepay360/shared';
+import type { Role } from '@prisma/client';
 import type { AuthenticatedUser } from '../types/express.js';
 
 export function canAccessEmployee(
@@ -6,7 +6,7 @@ export function canAccessEmployee(
   targetEmployeeId: string,
   bypassRoles: Role[] = ['HR_MANAGER', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER', 'ADMIN']
 ): boolean {
-  if (bypassRoles.includes(user.role as Role)) return true;
+  if (bypassRoles.includes(user.role)) return true;
   if (user.role === 'EMPLOYEE') {
     return user.employeeId !== null && user.employeeId === targetEmployeeId;
   }

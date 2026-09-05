@@ -1,28 +1,38 @@
 import type { Request, Response, NextFunction } from 'express';
-import { ApiResponse, CurrentUser } from '@peoplepay360/shared';
+import type { ApiResponse, CurrentUser } from '@peoplepay360/shared';
 import { LoginRequestSchema } from './auth.schemas.js';
-import { loginUser } from './auth.service.js';
+import * as authService from './auth.service.js';
+import { AppError } from '../../errors/app-error.js';
 
-export async function loginHandler(
+export async function login(
   req: Request,
   res: Response<ApiResponse<CurrentUser>>,
   next: NextFunction
 ): Promise<void> {
   try {
-    const { email, password } = LoginRequestSchema.parse(req.body);
-    const user = await loginUser(email, password);
+    const parseResult = LoginRequestSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      throw new AppError(400, 'VALIDATION_ERROR', 'Validation failed', parseResult.error.format());
+    }
 
-    req.session.regenerate((err) => {
-      if (err) {
-        return next(err);
+    const { email, password } = parseResult.data;
+    const safeUser = await authService.login(email, password);
+
+    // Regenerate session to prevent session fixation
+    req.session.regenerate((regenErr) => {
+      if (regenErr) {
+        return next(regenErr);
       }
-      req.session.userId = user.id;
+
+      req.session.userId = safeUser.id;
+
       req.session.save((saveErr) => {
         if (saveErr) {
           return next(saveErr);
         }
+
         res.status(200).json({
-          data: user,
+          data: safeUser,
           error: null,
         });
       });
@@ -32,35 +42,50 @@ export async function loginHandler(
   }
 }
 
-export function meHandler(
+export function me(
   req: Request,
   res: Response<ApiResponse<CurrentUser>>,
-  _next: NextFunction
+  next: NextFunction
 ): void {
-  res.status(200).json({
-    data: req.user!,
-    error: null,
-  });
+  try {
+    if (!req.user) {
+      throw new AppError(401, 'UNAUTHENTICATED', 'Authentication required');
+    }
+
+    res.status(200).json({
+      data: req.user,
+      error: null,
+    });
+  } catch (error) {
+    next(error);
+  }
 }
 
-export function logoutHandler(
+export function logout(
   req: Request,
   res: Response<ApiResponse<{ success: boolean }>>,
-  _next: NextFunction
+  next: NextFunction
 ): void {
-  if (req.session) {
-    req.session.destroy(() => {
-      res.clearCookie('connect.sid');
+  try {
+    if (req.session) {
+      req.session.destroy((err) => {
+        if (err) {
+          return next(err);
+        }
+        res.clearCookie('connect.sid', { path: '/' });
+        res.status(200).json({
+          data: { success: true },
+          error: null,
+        });
+      });
+    } else {
+      res.clearCookie('connect.sid', { path: '/' });
       res.status(200).json({
         data: { success: true },
         error: null,
       });
-    });
-  } else {
-    res.clearCookie('connect.sid');
-    res.status(200).json({
-      data: { success: true },
-      error: null,
-    });
+    }
+  } catch (error) {
+    next(error);
   }
 }

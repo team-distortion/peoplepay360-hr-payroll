@@ -1,3 +1,8 @@
-import { LoginRequestSchema } from '@peoplepay360/shared';
+import { z } from 'zod';
 
-export { LoginRequestSchema };
+export const LoginRequestSchema = z.object({
+  email: z.string().trim().email(),
+  password: z.string().min(1),
+});
+
+export type LoginRequest = z.infer<typeof LoginRequestSchema>;

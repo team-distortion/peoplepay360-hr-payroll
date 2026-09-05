@@ -4,11 +4,9 @@ import { AppError } from '../errors/app-error.js';
 import { toSafeUser } from '../modules/auth/auth.service.js';
 
 export async function authenticate(req: Request, _res: Response, next: NextFunction): Promise<void> {
-  const userId = req.session.userId;
-
+  const userId = req.session?.userId;
   if (!userId) {
-    next(new AppError(401, 'UNAUTHENTICATED', 'Authentication required'));
-    return;
+    return next(new AppError(401, 'UNAUTHENTICATED', 'Authentication required'));
   }
 
   try {
@@ -17,8 +15,7 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
     });
 
     if (!user || !user.isActive) {
-      next(new AppError(401, 'UNAUTHENTICATED', 'Authentication required'));
-      return;
+      return next(new AppError(401, 'UNAUTHENTICATED', 'Authentication required'));
     }
 
     req.user = toSafeUser(user);

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import AppLayout from '../components/layout/AppLayout';
 import EmployeesToolbar from '../components/employees/EmployeesToolbar';
 import EmployeeKanban from '../components/employees/EmployeeKanban';
