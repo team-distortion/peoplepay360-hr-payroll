@@ -10,11 +10,13 @@ export const errorHandler: ErrorRequestHandler = (
   _next: NextFunction
 ): void => {
   if (err instanceof AppError) {
-    const errorBody: ApiErrorResponse = {
+    const detailsObj = err.details && typeof err.details === 'object' ? (err.details as Record<string, unknown>) : null;
+    const errorBody: ApiErrorResponse & { error: { fields?: unknown } } = {
       data: null,
       error: {
         code: err.code,
         message: err.message,
+        ...(detailsObj?.fields ? { fields: detailsObj.fields } : {}),
         ...(err.details ? { details: err.details } : {}),
       },
     };

@@ -8,6 +8,7 @@ import {
   WorkingScheduleType,
   SalaryRuleCategory,
   SalaryRuleMethod,
+  Prisma,
 } from '@prisma/client';
 import argon2 from 'argon2';
 
@@ -595,8 +596,67 @@ async function main() {
     });
   }
 
+  console.log('Seeding Contracts...');
+
+  const contractsData = [
+    {
+      contractNumber: 'CON/2025/000001',
+      employeeId: priya.id,
+      departmentId: hrDepartment.id,
+      workingScheduleId: null, // uses employee default schedule
+      salaryStructureId: regularStructure.id,
+      jobPosition: 'HR Specialist',
+      startDate: new Date('2025-01-01T00:00:00.000Z'),
+      endDate: new Date('2025-12-31T00:00:00.000Z'),
+      monthlyWage: new Prisma.Decimal('65000.00'),
+      notes: 'Initial probationary contract for Priya Sharma (Expired)',
+    },
+    {
+      contractNumber: 'CON/2026/000001',
+      employeeId: priya.id,
+      departmentId: hrDepartment.id,
+      workingScheduleId: null, // uses employee default schedule
+      salaryStructureId: regularStructure.id,
+      jobPosition: 'HR Manager',
+      startDate: new Date('2026-01-01T00:00:00.000Z'),
+      endDate: null, // open-ended running contract
+      monthlyWage: new Prisma.Decimal('85000.00'),
+      notes: 'Current open-ended contract for Priya Sharma',
+    },
+    {
+      contractNumber: 'CON/2026/000002',
+      employeeId: neha.id,
+      departmentId: executiveDepartment.id,
+      workingScheduleId: flexibleSchedule.id, // explicit schedule override
+      salaryStructureId: regularStructure.id,
+      jobPosition: 'Chief Executive Officer',
+      startDate: new Date('2026-01-01T00:00:00.000Z'),
+      endDate: null,
+      monthlyWage: new Prisma.Decimal('150000.00'),
+      notes: 'Executive contract with flexible schedule override',
+    },
+  ];
+
+  for (const c of contractsData) {
+    await prisma.contract.upsert({
+      where: { contractNumber: c.contractNumber },
+      update: {
+        employeeId: c.employeeId,
+        departmentId: c.departmentId,
+        workingScheduleId: c.workingScheduleId,
+        salaryStructureId: c.salaryStructureId,
+        jobPosition: c.jobPosition,
+        startDate: c.startDate,
+        endDate: c.endDate,
+        monthlyWage: c.monthlyWage,
+        notes: c.notes,
+      },
+      create: c,
+    });
+  }
+
   console.log('Seed completed successfully.');
-  console.log('Created/updated: 3 schedules, 5 departments, 8 employees, 5 users, 1 salary structure with 7 rules.');
+  console.log('Created/updated: 3 schedules, 5 departments, 8 employees, 5 users, 1 salary structure with 7 rules, 3 contracts.');
   console.log(`Development login password: ${DEV_PASSWORD}`);
 }
 

@@ -74,6 +74,7 @@ export interface SalaryStructureListItemDto {
   activeRuleCount: number;
   totalRuleCount: number;
   currency: string;
+  employeeCount?: number;
   createdAt: string;
   updatedAt: string;
 }

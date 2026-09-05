@@ -143,3 +143,23 @@ Update this file after every meaningful implementation change.
 - Created frontend TanStack Query API and query hook layer (`frontend/src/features/salary-config/`).
 - Built frontend Salary Structures list page (`SalaryStructures.tsx`), Structure Detail page (`SalaryStructureDetail.tsx`) with accessible Move Up / Move Down controls and atomic configuration saving, global Salary Rules list page (`SalaryRules.tsx`) with multi-facet filters, and Salary Rule form (`SalaryRuleDetail.tsx`) with dynamic method fields and interactive available-identifier insert chips.
 - Updated `TopNav.tsx` to conditionally display the Payroll dropdown only to authorized payroll roles (`HR_PAYROLL_USER`, `HR_PAYROLL_MANAGER`, `ADMIN`) and updated `App.tsx` routes with role-based `ProtectedRoute` guards.
+
+## Branch Updates - Phase 5A Contract Management (`feature/phase05-contract-management`)
+
+- Added `Contract` and append-only `AuditLog` models to `apps/api/prisma/schema.prisma` with foreign key relations to Employee, Department, WorkingSchedule, SalaryStructure, and User actor.
+- Created and executed migration `20260906010000_phase05_contract_management` with PostgreSQL `btree_gist` extension, `contract_number_seq` sequence, column format and non-negative wage checks, and an exclusion constraint (`Contract_employee_dates_excl`) using `daterange("startDate", COALESCE("endDate" + 1, 'infinity'::date), '[)') WITH &&` to prevent overlapping contract dates for the same employee across dev and test databases.
+- Added shared Contract types, DTOs, value sets (`ContractStatusValues`, `EffectiveScheduleSourceValues`), and comprehensive Zod schemas (`ContractInputSchema`, `ContractListQuerySchema`) in `packages/shared/src/types/contracts.ts` and exported from `@peoplepay360/shared`.
+- Extended `SalaryStructureListItemDto` with distinct `employeeCount` and `EmployeeDetailDto` with `contractCount`.
+- Implemented backend contract module (`apps/api/src/modules/contracts/`):
+  - `contract-status.ts`: UTC date-only status derivation (`RUNNING` / `EXPIRED`, `isEffectiveToday`) supporting injected reference dates for unit testing.
+  - `contract-resolver.ts`: Schedule precedence resolution (`CONTRACT` override -> `EMPLOYEE` default -> `MISSING`) and full-period payroll contract resolution (`startDate <= periodStart AND (endDate IS NULL OR endDate >= periodEnd)`).
+  - `contract.service.ts`: Full CRUD operations (no hard delete), atomic `AuditLog` creation (`CONTRACT_CREATED`, `CONTRACT_UPDATED`) in a single transaction, immutable contract numbers formatted as `CON/YYYY/000001` via PostgreSQL sequence, pre-write active entity validation, and friendly conflict mapping for `CONTRACT_PERIOD_OVERLAP` (409).
+  - `contract.controller.ts` & `contract.routes.ts`: RBAC enforcement (Employee sees only own contracts as read-only; HR/Admin roles have create/edit permissions; hard deletion prohibited; unlinked employee returns `EMPLOYEE_PROFILE_NOT_LINKED`). Mounted under `/api/v1/contracts`.
+  - Added selector endpoint `GET /api/v1/contracts/selectors/salary-structures` returning active structures for contract creation forms.
+- Extended database seed script (`apps/api/prisma/seed.ts`) idempotently with representative contracts: an employee with an expired historical contract and an active open-ended contract, a contract with an explicit Schedule override, and all referencing the seeded Regular Salary Structure.
+- Added comprehensive integration test suite `apps/api/tests/contracts.test.ts` (24 tests passing) verifying DB constraints, overlap rejection, adjacent date acceptance, sequence generation, Decimal wage round-trips, atomic AuditLog creation, 5-role RBAC matrix, schedule precedence, period resolution, and derived counts. Full test suite passing across all domains (148/148 tests passing).
+- Created frontend API and TanStack Query hook layer (`frontend/src/features/contracts/`).
+- Refactored `/contracts` with live API connection, URL query-param-backed search, department/structure/status filters, removable employee filter chip (`/contracts?employeeId=...`), sorting, pagination, and color-coded status pills.
+- Built `/contracts/new` and `/contracts/:id` create/detail/edit views with auto-filling suggestions from employee selection, effective schedule badge, decimal text wage input, and overlap conflict alerts.
+- Enabled Contracts smart button in `EmployeeDetail.tsx` displaying real contract counts from the database and navigating to the filtered contract list.
+- Updated `App.tsx` routes with role protection for `/contracts`, `/contracts/new`, and `/contracts/:id`.

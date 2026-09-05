@@ -11,6 +11,7 @@ import AdminUsers from './pages/AdminUsers';
 import EmployeesPage from './pages/Employees';
 import EmployeeDetailPage from './pages/EmployeeDetail';
 import ContractsPage from './pages/Contracts';
+import ContractDetailPage from './pages/ContractDetail';
 import SchedulesPage from './pages/Schedules';
 import ScheduleForm from './pages/ScheduleForm';
 import AttendancePage from './pages/Attendance';
@@ -117,10 +118,28 @@ function App() {
           />
 
           <Route
-            path="/contracts/*"
+            path="/contracts"
             element={
               <ProtectedRoute>
                 <ContractsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/contracts/new"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR_MANAGER', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER']}>
+                <ContractDetailPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/contracts/:id"
+            element={
+              <ProtectedRoute>
+                <ContractDetailPage />
               </ProtectedRoute>
             }
           />
