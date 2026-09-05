@@ -32,6 +32,8 @@ Update this file after every meaningful implementation change.
 - Implemented the Admin User Management UI (`/admin/users` route)
 - Implemented the Employee Dashboard UI (`/employees` route) with Kanban, List, and Profile views
 - Implemented the Contracts UI (`/contracts` route) with List and Detail views, including employee filtering
+- Implemented the Working Schedules UI (`/schedules` route) with List and Form views
+- Implemented the Attendance UI (`/attendance` route) with Global Widget, List, and Detail views
 
 ## In Progress
 

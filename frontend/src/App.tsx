@@ -36,6 +36,9 @@ function CanvasFlow() {
 }
 
 import ContractsPage from './pages/Contracts';
+import SchedulesPage from './pages/Schedules';
+import AttendancePage from './pages/Attendance';
+import AttendanceDetail from './pages/AttendanceDetail';
 
 function App() {
   return (
@@ -46,6 +49,9 @@ function App() {
         <Route path="/admin/users" element={<AdminUsers />} />
         <Route path="/employees" element={<EmployeesPage />} />
         <Route path="/contracts/*" element={<ContractsPage />} />
+        <Route path="/schedules/*" element={<SchedulesPage />} />
+        <Route path="/attendance" element={<AttendancePage />} />
+        <Route path="/attendance/:id" element={<AttendanceDetail />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
