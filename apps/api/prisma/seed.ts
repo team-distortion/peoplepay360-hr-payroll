@@ -807,6 +807,40 @@ async function main() {
     });
   }
 
+  // Seed correction audit event for the manually edited demo record
+  const editedRecord = await prisma.attendance.findUnique({
+    where: {
+      employeeId_attendanceDate: {
+        employeeId: aarav.id,
+        attendanceDate: new Date('2026-08-28T00:00:00.000Z'),
+      },
+    },
+  });
+  if (editedRecord && adminUser) {
+    const existingAudit = await prisma.auditLog.findFirst({
+      where: {
+        entityType: 'ATTENDANCE',
+        entityId: editedRecord.id,
+        action: 'ATTENDANCE_CORRECTED',
+      },
+    });
+    if (!existingAudit) {
+      await prisma.auditLog.create({
+        data: {
+          actorId: adminUser.id,
+          action: 'ATTENDANCE_CORRECTED',
+          entityType: 'ATTENDANCE',
+          entityId: editedRecord.id,
+          before: Prisma.JsonNull,
+          after: {
+            id: editedRecord.id,
+            reason: 'Adjusted check-in time after biometric device sync issue',
+          },
+        },
+      });
+    }
+  }
+
   console.log('Seed completed successfully.');
   console.log(
     'Created/updated: 3 schedules, 5 departments, 8 employees, 5 users, 1 salary structure with 7 rules, 3 contracts, 7 attendance records.'

@@ -1,6 +1,7 @@
 import { fetchApi } from '../../lib/api';
 import type {
   AttendanceDto,
+  AttendanceDetailDto,
   AttendanceTodayDto,
   AttendanceListQuery,
   AttendanceListResponse,
@@ -48,8 +49,8 @@ export async function fetchAttendanceList(
   return response.data;
 }
 
-export async function fetchAttendanceById(id: string): Promise<AttendanceDto> {
-  const response = await fetchApi<AttendanceDto>(`/attendance/${id}`);
+export async function fetchAttendanceById(id: string): Promise<AttendanceDetailDto> {
+  const response = await fetchApi<AttendanceDetailDto>(`/attendance/${id}`);
 
   if (response.error) {
     const err: ApiClientError = new Error(
@@ -140,8 +141,8 @@ export async function createManualAttendance(
 export async function correctAttendance(
   id: string,
   input: AttendanceCorrectionInput
-): Promise<AttendanceDto> {
-  const response = await fetchApi<AttendanceDto>(`/attendance/${id}/correction`, {
+): Promise<AttendanceDetailDto> {
+  const response = await fetchApi<AttendanceDetailDto>(`/attendance/${id}/correction`, {
     method: 'PATCH',
     body: JSON.stringify(input),
   });

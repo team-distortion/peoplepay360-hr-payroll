@@ -8,6 +8,7 @@ import type {
 import {
   formatEmployeeFullName,
   type AttendanceDto,
+  type AttendanceDetailDto,
 } from '@peoplepay360/shared';
 import { deriveAttendanceFlags } from './attendance-calculation.js';
 
@@ -92,5 +93,17 @@ export function toAttendanceDto(
     lastEditedAt: record.lastEditedAt ? record.lastEditedAt.toISOString() : null,
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
+  };
+}
+
+export function toAttendanceDetailDto(
+  record: AttendanceWithRelations,
+  lastEditReason: string | null = null,
+  options?: { omitEditorEmail?: boolean }
+): AttendanceDetailDto {
+  const base = toAttendanceDto(record, options);
+  return {
+    ...base,
+    lastEditReason,
   };
 }

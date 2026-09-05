@@ -266,6 +266,10 @@ export interface AttendanceDto {
   updatedAt: string;
 }
 
+export interface AttendanceDetailDto extends AttendanceDto {
+  lastEditReason: string | null;
+}
+
 export interface AttendanceListResponse {
   items: AttendanceDto[];
   page: number;

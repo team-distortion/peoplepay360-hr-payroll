@@ -555,6 +555,9 @@ export default function AttendanceDetailPage() {
                       {record.lastEditedAt && (
                         <div>At: {new Date(record.lastEditedAt).toLocaleString()}</div>
                       )}
+                      {record.lastEditReason && (
+                        <div data-testid="last-edit-reason">Reason: {record.lastEditReason}</div>
+                      )}
                     </div>
                   )}
                 </div>

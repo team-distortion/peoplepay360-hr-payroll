@@ -709,6 +709,70 @@ describe('Attendance Module Integration Tests', () => {
       expect(audit).toBeDefined();
       expect((audit?.after as any)?.reason).toBe('Biometric gate failed, employee was on time at 9:00 AM');
     });
+
+    it('returns lastEditReason on Attendance detail DTO sourced from the latest ATTENDANCE_CORRECTED event', async () => {
+      // 1. Create a manual record
+      const createRes = await hrManagerAgent.post('/api/v1/attendance').send({
+        employeeId: otherEmployeeId,
+        attendanceDate: '2026-08-12',
+        kind: 'WORKED',
+        checkInAt: '2026-08-12T03:45:00.000Z',
+        checkOutAt: '2026-08-12T12:45:00.000Z',
+        reason: 'Initial creation reason',
+      });
+      expect(createRes.status).toBe(201);
+      const recordId = createRes.body.data.id;
+
+      // Detail before correction: lastEditReason is null (only created, not corrected)
+      const detailRes1 = await hrManagerAgent.get(`/api/v1/attendance/${recordId}`);
+      expect(detailRes1.status).toBe(200);
+      expect(detailRes1.body.data.lastEditReason).toBeNull();
+      expect(detailRes1.body.data.auditLog).toBeUndefined();
+
+      // First correction
+      const correctRes1 = await hrManagerAgent
+        .patch(`/api/v1/attendance/${recordId}/correction`)
+        .send({
+          kind: 'WORKED',
+          checkInAt: '2026-08-12T03:30:00.000Z',
+          checkOutAt: '2026-08-12T12:30:00.000Z',
+          reason: 'Correction reason 1: adjusted start time',
+        });
+      expect(correctRes1.status).toBe(200);
+      expect(correctRes1.body.data.lastEditReason).toBe('Correction reason 1: adjusted start time');
+
+      // Detail after first correction
+      const detailRes2 = await hrManagerAgent.get(`/api/v1/attendance/${recordId}`);
+      expect(detailRes2.status).toBe(200);
+      expect(detailRes2.body.data.lastEditReason).toBe('Correction reason 1: adjusted start time');
+      expect(detailRes2.body.data.auditLog).toBeUndefined();
+
+      // Second correction with a different reason
+      const correctRes2 = await hrManagerAgent
+        .patch(`/api/v1/attendance/${recordId}/correction`)
+        .send({
+          kind: 'WORKED',
+          checkInAt: '2026-08-12T03:30:00.000Z',
+          checkOutAt: '2026-08-12T13:00:00.000Z',
+          reason: 'Correction reason 2: approved 30m overtime',
+        });
+      expect(correctRes2.status).toBe(200);
+      expect(correctRes2.body.data.lastEditReason).toBe('Correction reason 2: approved 30m overtime');
+
+      // Detail should reflect the latest correction reason
+      const detailRes3 = await hrManagerAgent.get(`/api/v1/attendance/${recordId}`);
+      expect(detailRes3.status).toBe(200);
+      expect(detailRes3.body.data.lastEditReason).toBe('Correction reason 2: approved 30m overtime');
+      expect(detailRes3.body.data.auditLog).toBeUndefined();
+
+      // List endpoint must NOT expose lastEditReason or complete auditLog
+      const listRes = await hrManagerAgent.get(`/api/v1/attendance?employeeId=${otherEmployeeId}`);
+      expect(listRes.status).toBe(200);
+      const listedRecord = listRes.body.data.items.find((item: any) => item.id === recordId);
+      expect(listedRecord).toBeDefined();
+      expect(listedRecord.lastEditReason).toBeUndefined();
+      expect(listedRecord.auditLog).toBeUndefined();
+    });
   });
 
   describe('Attendance List, Queries & Ownership', () => {

@@ -8,6 +8,7 @@ import type {
   AttendanceListQuery,
   AttendanceListResponse,
   AttendanceDto,
+  AttendanceDetailDto,
   AttendanceTodayDto,
 } from '@peoplepay360/shared';
 import {
@@ -26,6 +27,7 @@ import {
 } from './attendance-calculation.js';
 import {
   toAttendanceDto,
+  toAttendanceDetailDto,
   formatDateToYYYYMMDD,
   type AttendanceWithRelations,
 } from './attendance.mapper.js';
@@ -586,7 +588,7 @@ export class AttendanceService {
     actorUser: AuthenticatedUser,
     id: string,
     input: AttendanceCorrectionInput
-  ): Promise<AttendanceDto> {
+  ): Promise<AttendanceDetailDto> {
     const existing = (await this.prisma.attendance.findUnique({
       where: { id },
       include: attendanceInclude,
@@ -676,7 +678,7 @@ export class AttendanceService {
         include: attendanceInclude,
       })) as AttendanceWithRelations;
 
-      const afterDto = toAttendanceDto(updated);
+      const afterDto = toAttendanceDetailDto(updated, input.reason);
 
       await tx.auditLog.create({
         data: {
@@ -832,7 +834,7 @@ export class AttendanceService {
   async getAttendanceById(
     actorUser: AuthenticatedUser,
     id: string
-  ): Promise<AttendanceDto> {
+  ): Promise<AttendanceDetailDto> {
     const record = (await this.prisma.attendance.findUnique({
       where: { id },
       include: attendanceInclude,
@@ -852,6 +854,34 @@ export class AttendanceService {
       }
     }
 
-    return toAttendanceDto(record, { omitEditorEmail: actorUser.role === 'EMPLOYEE' });
+    let lastEditReason: string | null = null;
+    const latestCorrection = await this.prisma.auditLog.findFirst({
+      where: {
+        entityType: 'ATTENDANCE',
+        entityId: id,
+        action: 'ATTENDANCE_CORRECTED',
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        after: true,
+      },
+    });
+
+    if (
+      latestCorrection?.after &&
+      typeof latestCorrection.after === 'object' &&
+      !Array.isArray(latestCorrection.after)
+    ) {
+      const afterObj = latestCorrection.after as Record<string, unknown>;
+      if (typeof afterObj.reason === 'string') {
+        lastEditReason = afterObj.reason;
+      }
+    }
+
+    return toAttendanceDetailDto(record, lastEditReason, {
+      omitEditorEmail: actorUser.role === 'EMPLOYEE',
+    });
   }
 }
