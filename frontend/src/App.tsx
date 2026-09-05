@@ -9,14 +9,17 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import AdminUsers from './pages/AdminUsers';
 import EmployeesPage from './pages/Employees';
+import EmployeeDetailPage from './pages/EmployeeDetail';
 import ContractsPage from './pages/Contracts';
 import SchedulesPage from './pages/Schedules';
+import ScheduleForm from './pages/ScheduleForm';
 import AttendancePage from './pages/Attendance';
 import AttendanceDetail from './pages/AttendanceDetail';
 import TimeOffDashboard from './pages/time-off/TimeOffDashboard';
 import TimeOffRequests from './pages/time-off/TimeOffRequests';
 import TimeOffAllocations from './pages/time-off/TimeOffAllocations';
 import TimeOffTypes from './pages/time-off/TimeOffTypes';
+import PayrollPage from './pages/Payroll';
 
 function CanvasFlow() {
   return (
@@ -86,8 +89,26 @@ function App() {
           <Route
             path="/employees"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR_MANAGER', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER']}>
                 <EmployeesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/employees/new"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR_MANAGER', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER']}>
+                <EmployeeDetailPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/employees/:id"
+            element={
+              <ProtectedRoute>
+                <EmployeeDetailPage />
               </ProtectedRoute>
             }
           />
@@ -102,10 +123,28 @@ function App() {
           />
 
           <Route
-            path="/schedules/*"
+            path="/schedules"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR_MANAGER', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER']}>
                 <SchedulesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/schedules/new"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR_MANAGER', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER']}>
+                <ScheduleForm />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/schedules/:id"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR_MANAGER', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER']}>
+                <ScheduleForm />
               </ProtectedRoute>
             }
           />

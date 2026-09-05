@@ -37,7 +37,7 @@ System config is single-value, not per Employee: `currency=INR`, `timezone=Asia/
 
 ## Boundaries
 
-- `apps/web/` — UI only; no payroll/business calculations.
+- `frontend/` — React UI only; no payroll/business calculations.
 - `apps/api/` — HTTP, auth, services, Prisma, transactions, PDF, email.
 - `packages/shared/` — enums/types/Zod/API contracts; no React/Express/Prisma.
 - `apps/api/prisma/` — schema, migrations, seeds, custom SQL constraints.

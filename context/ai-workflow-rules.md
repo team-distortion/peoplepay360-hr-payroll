@@ -3,13 +3,19 @@
 ## Approach
 Build PeoplePay360 incrementally using a spec-driven workflow.
 The files in `context/` — `project-overview.md`, `architecture.md`,
-`ui-context.md`, `code-standards.md`, and `progress-tracker.md` —
+`schema-roadmap.md`, `ui-context.md`, `code-standards.md`, and
+`progress-tracker.md` —
 define what to build, how to build it, and the current state of
 progress. Always implement against these specs; do not infer or
 invent HR/payroll behavior (pay calculations, leave rules, role
 permissions, etc.) from scratch. If a spec doesn't cover a case,
 resolve it in the spec first (see "Handling Missing Requirements"
 below) rather than guessing.
+
+Follow `context/development-workflow.md` for branch creation, feature-spec
+approval, file ownership, verification, PR review, merge, and parallel work.
+Implementation may begin only from an explicitly named feature spec whose
+status is `APPROVED`.
 
 ## Scoping Rules
 - Work on one feature unit at a time (e.g. one payroll operation,
@@ -71,8 +77,36 @@ Update the relevant context file whenever implementation changes:
 - Feature scope → `context/project-overview.md`
 - UI/theme/component conventions → `context/ui-context.md`
 
+## Parallel Branches
+
+- Give each branch one bounded feature unit and explicit file ownership.
+- Parallel branches must not edit the same Prisma schema/migration, shared route
+  registry, navigation file, shared package barrel, or feature spec.
+- If a branch needs a shared integration-file change, leave that change to the
+  main-branch integrator after the feature branch is merged.
+- Pure domain libraries with unit tests are preferred parallel tasks because
+  they can be integrated without depending on unfinished database or UI work.
+- Do not merge two independently created Prisma migrations until their order
+  and generated SQL have been reviewed together.
+
+## Progress Tracking Across Branches
+
+`context/progress-tracker.md` uses Git's union merge driver through
+`.gitattributes`. To keep the result meaningful:
+
+- On feature branches, do not edit `Current Phase`, `Current Goal`, `Completed`,
+  `In Progress`, `Next Up`, `Open Questions`, or `Architecture Decisions`.
+- Append one unique bullet under `Branch Updates` after a meaningful change.
+- Use: `- [YYYY-MM-DD] [branch] [owner] summary; verification: command/result`.
+- Never reorder, rewrite, or delete another branch's update.
+- After merging to `main`, the integrator moves/reconciles relevant updates into
+  the summary sections and may remove incorporated branch-update bullets.
+- Union merging prevents textual conflicts; it does not replace the integrator's
+  semantic review for duplicates, contradictions, or incomplete work.
+
 ## Before Moving to the Next Unit
 1. The current unit works end to end within its defined scope
 2. No invariant defined in `context/architecture.md` was violated
-3. `context/progress-tracker.md` reflects the completed work
+3. The feature branch appended its verified `Branch Updates` entry; after merge,
+   `context/progress-tracker.md` reflects the completed work
 4. `npm run build` passes

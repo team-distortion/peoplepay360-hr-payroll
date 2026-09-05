@@ -10,6 +10,12 @@ Update this file after every meaningful implementation change.
 ## Current Goal
 
 - Install `recharts` (`npm install` in `frontend/`), then connect remaining domain pages to backend APIs & implement Phase 2 Employee Management & Contracts.
+- Backend: Phase 3 — Employee Master COMPLETE
+- Frontend: Phase 3 — Employee Master COMPLETE
+
+## Current Goal
+
+- Proceeding to Phase 4 (Salary Configuration & Formula Engine) & connecting remaining domains.
 
 ## Completed
 
@@ -89,3 +95,31 @@ Update this file after every meaningful implementation change.
 - All Phase 1 backend tasks and integration tests completed and verified with `npm run typecheck`, `npm run build`, and `npm test` (23/23 tests passing, zero compilation errors).
 - Express API authentication & authorization endpoints active on port 4000.
 - Frontend dev server configured to proxy `/api` requests to backend API.
+
+## Branch Updates - Phase 2 Working Schedule (`feature/phase02-working-schedule`)
+
+- Added shared Working Schedule types, Zod schemas, DTOs, and pure time calculation utilities (`packages/shared/src/types/schedules.ts`).
+- Added Prisma `WorkingSchedule` and `WorkingScheduleDay` models, along with `WorkingScheduleType`, `WorkingScheduleStatus`, and `Weekday` enums (`apps/api/prisma/schema.prisma`).
+- Created and executed migration `phase02_working_schedules` with PostgreSQL check constraints enforcing minute ranges (0-1439), distinct start/end times, and break minute limits (0-720) across development and test databases.
+- Extended database seed script (`apps/api/prisma/seed.ts`) idempotently with standard `40 Hours / Week` and overnight `Night Shift` schedules deriving authoritative 2,400 weekly minutes.
+- Implemented backend domain module `apps/api/src/modules/schedules` (`schedule-time.ts`, `schedules.schemas.ts`, `schedules.service.ts`, `schedules.controller.ts`, `schedules.routes.ts`) with strict RBAC (`HR_MANAGER`, `HR_PAYROLL_USER`, `HR_PAYROLL_MANAGER`, `ADMIN`) and mounted on `/api/v1/schedules`.
+- Added unit tests (`schedule-time.test.ts`) and API integration test suite (`schedules.test.ts`), verifying 53/53 tests passing across the test suite.
+- Integrated frontend with `@tanstack/react-query`, `react-hook-form`, `@hookform/resolvers`, and `zod`.
+- Connected `/schedules`, `/schedules/new`, and `/schedules/:id` to PostgreSQL API via TanStack Query and React Hook Form, replacing `DUMMY_SCHEDULES` and browser-authoritative duration calculations.
+- Protected all schedule frontend routes with role restrictions matching the API matrix.
+
+## Branch Updates - Phase 3 Employee Master (`feature/phase03-employee-master`)
+
+- Added `COMPANY_NAME` configuration to `.env.example`, `apps/api/.env`, and validated environment configuration (`apps/api/src/config/env.ts`).
+- Added shared Department and Employee types, DTOs, pure formatting helpers, and comprehensive Zod validation schemas (`packages/shared/src/types/employees.ts`) and exported from package barrel.
+- Added Prisma `RecordStatus` and `EmployeeType` enums, `Department` model, `Employee` model with self-referential reporting manager hierarchy, and converted `User.employeeId` placeholder strings to a real optional one-to-one foreign key with `ON DELETE SET NULL`.
+- Created and deployed migration `20260905183000_phase03_employee_master` with pre-FK placeholder cleanup, foreign keys, indexes, and PostgreSQL check constraints across development and test databases.
+- Updated database seed script (`apps/api/prisma/seed.ts`) idempotently in foreign-key-safe order: upserting schedules, departments (`Finance`, `HR`, `Engineering`, `Operations`), representative employees (`EMP001` Aarav Mehta, `EMP002` Sara Khan, `EMP003` John Dsouza, `EMP004` Neha Patel [ACTIVE]), linking managers, and linking the seeded Employee-role user to Aarav Mehta's real record.
+- Implemented backend Department module (`departments.service.ts`, `departments.controller.ts`, `departments.routes.ts`) with RBAC and active employee deactivation prevention.
+- Implemented backend Employee module (`manager-cycle.ts`, `employee-mapper.ts`, `employees.service.ts`, `employees.controller.ts`, `employees.routes.ts`) with reporting cycle prevention, active reference validation, record-level ownership checks for `EMPLOYEE` role, and privacy field omissions in list queries.
+- Updated auth test suite fixtures (`apps/api/tests/auth.test.ts`) to use real Department, Schedule, and Employee fixtures without weakening any assertions.
+- Added automated integration test suites for Departments (`tests/departments.test.ts`) and Employees (`tests/employees.test.ts`), verifying 76/76 passing tests across the entire test suite.
+- Implemented frontend TanStack Query API layers for departments and employees (`frontend/src/features/departments`, `frontend/src/features/employees`).
+- Refactored `/employees` with URL query-param-backed view toggle (Kanban/List), search, department filter, employee type filter, status filter, and real DTO binding.
+- Implemented `/employees/new` and `/employees/:id` with React Hook Form, live dropdown selectors, read-only/edit states, status confirmation toggle, disabled zero-state smart buttons (`Available after <module>`), and removed all mock employee and private data.
+- Configured frontend route protection, top navigation, and login redirects to ensure `EMPLOYEE` role users navigate to their own profile and are restricted from global employee lists.

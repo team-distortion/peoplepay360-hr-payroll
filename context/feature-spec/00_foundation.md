@@ -8,8 +8,8 @@ Before changing code:
 3. If the PeoplePay360 problem specification/PDF exists in the repository, treat it as the product requirements source.
 4. Inspect the existing repository before creating or deleting anything.
 5. Preserve any existing frontend work. Another developer is building the UI independently.
-6. If `apps/web/` already exists, DO NOT modify its application code, dependencies, components, routes, styling, or configuration in this task.
-7. If `apps/web/` does not exist, DO NOT scaffold the frontend yet.
+6. The existing React application is in `frontend/`; DO NOT modify its application code, dependencies, components, routes, styling, or configuration in this task.
+7. Do not create a second frontend under `apps/web/`.
 
 The architecture and code standards are authoritative. Do not substitute alternative technologies because you prefer them.
 
@@ -73,9 +73,6 @@ peoplepay360/
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
-│   └── web/
-│       └── EXISTING FRONTEND — DO NOT MODIFY
-│
 ├── packages/
 │   └── shared/
 │       ├── src/
@@ -84,6 +81,8 @@ peoplepay360/
 │
 ├── architecture.md
 ├── code-standards.md
+├── frontend/
+│   └── EXISTING FRONTEND — DO NOT MODIFY
 ├── docker-compose.yml
 ├── .env.example
 ├── .gitignore

@@ -1,496 +1,412 @@
 import { useState, useMemo } from 'react';
-import { Plus, Search, ChevronDown, ArrowLeft, Settings, X, Calendar as CalendarIcon, Clock, Briefcase } from 'lucide-react';
+import type React from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import {
+  Plus,
+  Search,
+  Briefcase,
+  AlertCircle,
+  Loader2,
+  RefreshCw,
+  Power,
+} from 'lucide-react';
+import type {
+  WorkingScheduleStatus,
+  WorkingScheduleType,
+  WorkingScheduleDto,
+} from '@peoplepay360/shared';
 import AppLayout from '../components/layout/AppLayout';
-
-interface DaySchedule {
-  id: string;
-  day: string;
-  startTime: string;
-  endTime: string;
-  breakHours: number;
-}
-
-interface WorkingSchedule {
-  id: string;
-  name: string;
-  company: string;
-  timezone: string;
-  status: 'Active' | 'Inactive';
-  days: DaySchedule[];
-}
-
-const DUMMY_SCHEDULES: WorkingSchedule[] = [
-  {
-    id: 'SCH-001',
-    name: '40 Hours / Week',
-    company: 'My Company',
-    timezone: 'UTC',
-    status: 'Active',
-    days: [
-      { id: 'd1', day: 'Monday', startTime: '09:00', endTime: '18:00', breakHours: 1 },
-      { id: 'd2', day: 'Tuesday', startTime: '09:00', endTime: '18:00', breakHours: 1 },
-      { id: 'd3', day: 'Wednesday', startTime: '09:00', endTime: '18:00', breakHours: 1 },
-      { id: 'd4', day: 'Thursday', startTime: '09:00', endTime: '18:00', breakHours: 1 },
-      { id: 'd5', day: 'Friday', startTime: '09:00', endTime: '18:00', breakHours: 1 },
-    ]
-  },
-  {
-    id: 'SCH-002',
-    name: 'Night Shift',
-    company: 'My Company',
-    timezone: 'UTC',
-    status: 'Active',
-    days: [
-      { id: 'd1', day: 'Monday', startTime: '22:00', endTime: '06:00', breakHours: 0 },
-      { id: 'd2', day: 'Tuesday', startTime: '22:00', endTime: '06:00', breakHours: 0 },
-      { id: 'd3', day: 'Wednesday', startTime: '22:00', endTime: '06:00', breakHours: 0 },
-      { id: 'd4', day: 'Thursday', startTime: '22:00', endTime: '06:00', breakHours: 0 },
-      { id: 'd5', day: 'Friday', startTime: '22:00', endTime: '06:00', breakHours: 0 },
-    ]
-  },
-  {
-    id: 'SCH-003',
-    name: 'Part-time 20h',
-    company: 'My Company',
-    timezone: 'UTC',
-    status: 'Inactive',
-    days: [
-      { id: 'd1', day: 'Monday', startTime: '09:00', endTime: '14:00', breakHours: 0 },
-      { id: 'd2', day: 'Tuesday', startTime: '09:00', endTime: '14:00', breakHours: 0 },
-      { id: 'd3', day: 'Wednesday', startTime: '09:00', endTime: '14:00', breakHours: 0 },
-      { id: 'd4', day: 'Thursday', startTime: '09:00', endTime: '14:00', breakHours: 0 },
-    ]
-  }
-];
-
-function calculateDayHours(day: DaySchedule): number {
-  if (!day.startTime || !day.endTime) return 0;
-  
-  const parseTime = (timeStr: string) => {
-    const [h, m] = timeStr.split(':').map(Number);
-    return h + (m || 0) / 60;
-  };
-  
-  let start = parseTime(day.startTime);
-  let end = parseTime(day.endTime);
-  
-  if (end < start) {
-    end += 24; // Handle overnight shifts
-  }
-  
-  const total = (end - start) - (day.breakHours || 0);
-  return Math.max(0, total);
-}
-
-function calculateTotalHours(days: DaySchedule[]): number {
-  return days.reduce((sum, day) => sum + calculateDayHours(day), 0);
-}
+import {
+  useSchedules,
+  useUpdateScheduleStatus,
+} from '../features/schedules/schedules.queries';
 
 export default function SchedulesPage() {
-  const [schedules, setSchedules] = useState<WorkingSchedule[]>(DUMMY_SCHEDULES);
+  const navigate = useNavigate();
+
+  // Search and filter state
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedScheduleId, setSelectedScheduleId] = useState<string | null | undefined>(undefined);
-  const [activeTab, setActiveTab] = useState<'List' | 'Calendar'>('List');
+  const [selectedStatus, setSelectedStatus] = useState<WorkingScheduleStatus | 'ALL'>('ALL');
+  const [selectedType, setSelectedType] = useState<WorkingScheduleType | 'ALL'>('ALL');
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
 
-  // Form State
-  const [formSchedule, setFormSchedule] = useState<WorkingSchedule | null>(null);
+  // Query API
+  const queryParams = useMemo(() => ({
+    search: searchQuery.trim() || undefined,
+    status: selectedStatus === 'ALL' ? undefined : selectedStatus,
+    type: selectedType === 'ALL' ? undefined : selectedType,
+    page,
+    pageSize,
+  }), [searchQuery, selectedStatus, selectedType, page, pageSize]);
 
-  const filteredSchedules = useMemo(() => {
-    if (!searchQuery) return schedules;
-    const lowerQ = searchQuery.toLowerCase();
-    return schedules.filter(s => 
-      s.name.toLowerCase().includes(lowerQ) ||
-      s.company.toLowerCase().includes(lowerQ)
-    );
-  }, [schedules, searchQuery]);
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isError,
+    error,
+    refetch,
+  } = useSchedules(queryParams);
 
-  const handleOpenDetail = (id: string | null) => {
-    if (id === null) {
-      setFormSchedule({
-        id: `SCH-NEW-${Date.now()}`,
-        name: '',
-        company: 'My Company',
-        timezone: 'UTC',
-        status: 'Active',
-        days: []
+  const statusMutation = useUpdateScheduleStatus();
+  const [statusActionId, setStatusActionId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const schedules = data?.items || [];
+  const total = data?.total || 0;
+  const totalPages = Math.ceil(total / pageSize) || 1;
+
+  const handleToggleStatus = async (
+    e: React.MouseEvent,
+    schedule: WorkingScheduleDto
+  ) => {
+    e.stopPropagation(); // prevent row navigation
+    setActionError(null);
+    setStatusActionId(schedule.id);
+
+    const nextStatus: WorkingScheduleStatus =
+      schedule.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+
+    try {
+      await statusMutation.mutateAsync({
+        id: schedule.id,
+        status: nextStatus,
       });
-    } else {
-      const schedule = schedules.find(s => s.id === id);
-      if (schedule) setFormSchedule({ ...schedule, days: [...schedule.days.map(d => ({ ...d }))] });
+    } catch (err: any) {
+      setActionError(err.message || 'Failed to update schedule status.');
+    } finally {
+      setStatusActionId(null);
     }
-    setSelectedScheduleId(id);
-  };
-
-  const handleCloseDetail = () => {
-    setSelectedScheduleId(undefined);
-    setFormSchedule(null);
-  };
-
-  const handleSaveSchedule = () => {
-    if (!formSchedule) return;
-    
-    if (selectedScheduleId === null) {
-      setSchedules([...schedules, formSchedule]);
-    } else {
-      setSchedules(schedules.map(s => s.id === formSchedule.id ? formSchedule : s));
-    }
-    handleCloseDetail();
-  };
-
-  const addDayToForm = () => {
-    if (!formSchedule) return;
-    const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    const nextDay = daysOfWeek[formSchedule.days.length % 7];
-    
-    setFormSchedule({
-      ...formSchedule,
-      days: [
-        ...formSchedule.days, 
-        { id: `d${Date.now()}`, day: nextDay, startTime: '09:00', endTime: '18:00', breakHours: 1 }
-      ]
-    });
-  };
-
-  const removeDayFromForm = (dayId: string) => {
-    if (!formSchedule) return;
-    setFormSchedule({
-      ...formSchedule,
-      days: formSchedule.days.filter(d => d.id !== dayId)
-    });
-  };
-
-  const updateDayInForm = (dayId: string, field: keyof DaySchedule, value: string | number) => {
-    if (!formSchedule) return;
-    setFormSchedule({
-      ...formSchedule,
-      days: formSchedule.days.map(d => d.id === dayId ? { ...d, [field]: value } : d)
-    });
   };
 
   return (
     <AppLayout>
-      {selectedScheduleId !== undefined && formSchedule ? (
-        // FORM VIEW
-        <div className="flex-1 flex flex-col bg-surface/30 animate-in fade-in slide-in-from-right-4 duration-300">
-          <div className="px-8 py-6 bg-white border-b border-border sticky top-0 z-10 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={handleCloseDetail}
-                className="p-2 hover:bg-surface rounded-full text-brandAccent transition-colors flex items-center justify-center group"
-              >
-                <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-              </button>
-              <h2 className="text-2xl font-display font-bold text-navy">
-                {formSchedule.name || 'New Schedule'}
-              </h2>
-              <span className={`px-2.5 py-1 text-xs font-medium rounded-full border ${formSchedule.status === 'Active' ? 'border-success text-success bg-success/10' : 'border-mutedText text-mutedText bg-surface'}`}>
-                {formSchedule.status}
-              </span>
-            </div>
-            
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={handleCloseDetail}
-                className="px-4 py-2 text-sm font-medium text-slate hover:text-navy transition-colors"
-              >
-                Cancel
-              </button>
-              <button 
-                onClick={handleSaveSchedule}
-                className="px-6 py-2 bg-brandAccent hover:bg-[#4a44cc] text-white text-sm font-medium rounded-full transition-all shadow-sm hover:shadow-md"
-              >
-                Save Schedule
-              </button>
+      <div className="flex-1 flex flex-col bg-surface/30">
+        {/* Top Header */}
+        <div className="px-8 py-6 bg-white border-b border-border flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-4">
+            <Link
+              to="/schedules/new"
+              className="group flex items-center gap-2 px-5 py-2.5 bg-brandAccent hover:bg-[#4a44cc] text-white font-medium rounded-full transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0 text-sm"
+            >
+              <Plus size={16} className="transition-transform duration-300 group-hover:rotate-90" />
+              <span>New Schedule</span>
+            </Link>
+            <div>
+              <h1 className="text-3xl font-display font-bold text-navy tracking-tight">
+                Working Schedules
+              </h1>
+              <p className="text-xs text-mutedText mt-0.5">
+                Manage organization-wide weekly shift patterns, durations, and status
+              </p>
             </div>
           </div>
 
-          <div className="flex-1 overflow-auto p-8">
-            <div className="max-w-5xl mx-auto space-y-8">
-              
-              {/* Top Field Group */}
-              <div className="bg-white rounded-2xl border border-border p-6 shadow-sm">
-                <h3 className="text-sm font-semibold text-navy uppercase tracking-wider mb-6 flex items-center gap-2">
-                  <Briefcase size={16} className="text-mutedText" />
-                  General Information
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-navy mb-2">Schedule Name</label>
-                    <input 
-                      type="text" 
-                      value={formSchedule.name}
-                      onChange={(e) => setFormSchedule({...formSchedule, name: e.target.value})}
-                      placeholder="e.g. 40 Hours / Week"
-                      className="w-full bg-white border border-border rounded-xl px-4 py-2 text-sm text-navy placeholder:text-mutedText focus:outline-none focus:ring-2 focus:ring-brandAccent/20 focus:border-brandAccent transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-navy mb-2">Company</label>
-                    <input 
-                      type="text" 
-                      value={formSchedule.company}
-                      onChange={(e) => setFormSchedule({...formSchedule, company: e.target.value})}
-                      className="w-full bg-white border border-border rounded-xl px-4 py-2 text-sm text-navy placeholder:text-mutedText focus:outline-none focus:ring-2 focus:ring-brandAccent/20 focus:border-brandAccent transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-navy mb-2">Timezone</label>
-                    <select
-                      value={formSchedule.timezone}
-                      onChange={(e) => setFormSchedule({...formSchedule, timezone: e.target.value})}
-                      className="w-full bg-white border border-border rounded-xl px-4 py-2 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-brandAccent/20 focus:border-brandAccent transition-all appearance-none"
-                    >
-                      <option value="UTC">UTC</option>
-                      <option value="America/New_York">America/New_York</option>
-                      <option value="Europe/London">Europe/London</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              {/* Weekly Schedule Grid */}
-              <div className="bg-white rounded-2xl border border-border overflow-hidden shadow-sm flex flex-col">
-                <div className="p-6 border-b border-border flex items-center justify-between bg-surface/50">
-                  <h3 className="text-sm font-semibold text-navy uppercase tracking-wider flex items-center gap-2">
-                    <CalendarIcon size={16} className="text-mutedText" />
-                    Weekly Schedule
-                  </h3>
-                  <button 
-                    onClick={addDayToForm}
-                    className="group flex items-center gap-1.5 px-3 py-1.5 bg-white border border-border text-navy text-sm font-medium rounded-full hover:bg-surface transition-colors shadow-sm"
-                  >
-                    <Plus size={14} className="transition-transform duration-300 group-hover:rotate-90" /> Add Day
-                  </button>
-                </div>
-                
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse min-w-[700px]">
-                    <thead>
-                      <tr className="border-b border-border bg-white text-xs uppercase tracking-wider text-mutedText font-semibold">
-                        <th className="px-6 py-3 w-40">Day</th>
-                        <th className="px-6 py-3">Start Time</th>
-                        <th className="px-6 py-3">End Time</th>
-                        <th className="px-6 py-3">Break (hrs)</th>
-                        <th className="px-6 py-3">Hours</th>
-                        <th className="px-4 py-3 w-16 text-center"></th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-sm text-navy divide-y divide-border">
-                      {formSchedule.days.map((day) => {
-                        const dayHours = calculateDayHours(day);
-                        return (
-                          <tr key={day.id} className="hover:bg-surface/30 transition-colors group">
-                            <td className="px-6 py-3">
-                              <select
-                                value={day.day}
-                                onChange={(e) => updateDayInForm(day.id, 'day', e.target.value)}
-                                className="w-full bg-transparent border-0 focus:ring-0 text-sm font-medium text-navy p-0 cursor-pointer"
-                              >
-                                {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => (
-                                  <option key={d} value={d}>{d}</option>
-                                ))}
-                              </select>
-                            </td>
-                            <td className="px-6 py-3">
-                              <input 
-                                type="time"
-                                value={day.startTime}
-                                onChange={(e) => updateDayInForm(day.id, 'startTime', e.target.value)}
-                                className="bg-transparent border border-transparent hover:border-border focus:border-brandAccent rounded px-2 py-1 focus:outline-none transition-colors"
-                              />
-                            </td>
-                            <td className="px-6 py-3">
-                              <input 
-                                type="time"
-                                value={day.endTime}
-                                onChange={(e) => updateDayInForm(day.id, 'endTime', e.target.value)}
-                                className="bg-transparent border border-transparent hover:border-border focus:border-brandAccent rounded px-2 py-1 focus:outline-none transition-colors"
-                              />
-                            </td>
-                            <td className="px-6 py-3">
-                              <input 
-                                type="number"
-                                min="0"
-                                step="0.5"
-                                value={day.breakHours}
-                                onChange={(e) => updateDayInForm(day.id, 'breakHours', parseFloat(e.target.value) || 0)}
-                                className="w-16 bg-transparent border border-transparent hover:border-border focus:border-brandAccent rounded px-2 py-1 focus:outline-none transition-colors"
-                              />
-                            </td>
-                            <td className="px-6 py-3 font-medium text-slate">
-                              {dayHours.toFixed(1)}h
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <button 
-                                onClick={() => removeDayFromForm(day.id)}
-                                className="p-1.5 text-mutedText hover:text-error hover:bg-error/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
-                              >
-                                <X size={16} />
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {formSchedule.days.length === 0 && (
-                        <tr>
-                          <td colSpan={6} className="px-6 py-8 text-center text-mutedText">
-                            No days added to this schedule. Click "Add Day" to begin.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="p-6 bg-surface/30 border-t border-border flex justify-between items-center">
-                  <div className="flex gap-4">
-                    <div className="flex flex-col">
-                      <span className="text-xs text-mutedText uppercase font-semibold tracking-wider">Days per week</span>
-                      <span className="text-lg font-medium text-navy">{formSchedule.days.length}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-xl border border-border shadow-sm">
-                    <Clock className="text-brandAccent" size={20} />
-                    <span className="text-sm font-medium text-navy">Total Weekly Hours:</span>
-                    <span className="text-xl font-bold text-navy">{calculateTotalHours(formSchedule.days).toFixed(1)}h</span>
-                  </div>
-                </div>
-              </div>
-              
-              <p className="text-sm text-mutedText text-center pb-8 flex items-center justify-center gap-2">
-                <Briefcase size={14} />
-                Use this schedule as the employee/contract working pattern.
-              </p>
-
-            </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="p-2.5 text-slate hover:text-navy hover:bg-surface rounded-full transition-colors border border-border"
+              title="Refresh schedule list"
+            >
+              <RefreshCw size={16} className={isFetching ? 'animate-spin text-brandAccent' : ''} />
+            </button>
           </div>
         </div>
-      ) : (
-        // LIST VIEW
-        <div className="flex-1 flex flex-col bg-surface/30 animate-in fade-in duration-700 ease-out">
-          {/* Header Row */}
-          <div className="px-8 py-6 bg-white border-b border-border flex flex-col gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => handleOpenDetail(null)}
-                className="group flex items-center gap-2 px-4 py-2 bg-brandAccent hover:bg-[#4a44cc] text-white font-medium rounded-full transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-0.5 active:translate-y-0"
-              >
-                <Plus size={16} className="transition-transform duration-300 group-hover:rotate-90" />
-                <span>New Schedule</span>
-              </button>
-              <h1 className="text-3xl font-display font-bold text-navy tracking-tight">Working Schedules</h1>
+
+        {/* Action Error Alert */}
+        {actionError && (
+          <div className="mx-8 mt-4 p-3.5 bg-error/10 border border-error/20 rounded-xl flex items-center justify-between text-error text-sm">
+            <div className="flex items-center gap-2">
+              <AlertCircle size={16} />
+              <span>{actionError}</span>
+            </div>
+            <button
+              onClick={() => setActionError(null)}
+              className="text-xs font-semibold hover:underline"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* Main Content Area */}
+        <div className="p-8 flex-1 flex flex-col max-w-[1600px] w-full mx-auto">
+          {/* Filters & Search Toolbar */}
+          <div className="flex flex-wrap items-center gap-3 mb-6">
+            {/* Search Input */}
+            <div className="relative w-80">
+              <Search
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-mutedText"
+                size={16}
+              />
+              <input
+                type="text"
+                placeholder="Search by schedule or company..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setPage(1);
+                }}
+                className="w-full pl-10 pr-4 py-2 bg-white border border-border rounded-full focus:outline-none focus:ring-2 focus:ring-brandAccent/20 focus:border-brandAccent transition-all text-sm text-navy placeholder:text-mutedText shadow-xs"
+              />
             </div>
 
-            {/* Tabs */}
-            <div className="flex items-center gap-6 mt-2">
-              <button 
-                onClick={() => setActiveTab('List')}
-                className={`text-sm font-medium pb-2 border-b-2 transition-colors ${activeTab === 'List' ? 'border-brandAccent text-navy' : 'border-transparent text-slate hover:text-navy'}`}
-              >
-                List
-              </button>
-              <button 
-                onClick={() => setActiveTab('Calendar')}
-                className={`text-sm font-medium pb-2 border-b-2 transition-colors ${activeTab === 'Calendar' ? 'border-brandAccent text-navy' : 'border-transparent text-slate hover:text-navy'}`}
-              >
-                Calendar
-              </button>
+            {/* Status Filter */}
+            <div className="flex items-center bg-white border border-border rounded-full px-3 py-1 text-xs shadow-xs">
+              <span className="text-mutedText mr-2 font-medium">Status:</span>
+              {(['ALL', 'ACTIVE', 'INACTIVE'] as const).map((st) => (
+                <button
+                  key={st}
+                  onClick={() => {
+                    setSelectedStatus(st);
+                    setPage(1);
+                  }}
+                  className={`px-2.5 py-1 rounded-full font-medium transition-all ${
+                    selectedStatus === st
+                      ? 'bg-brandAccent text-white shadow-xs'
+                      : 'text-slate hover:text-navy'
+                  }`}
+                >
+                  {st === 'ALL' ? 'All' : st === 'ACTIVE' ? 'Active' : 'Inactive'}
+                </button>
+              ))}
+            </div>
+
+            {/* Type Filter */}
+            <div className="flex items-center bg-white border border-border rounded-full px-3 py-1 text-xs shadow-xs">
+              <span className="text-mutedText mr-2 font-medium">Type:</span>
+              {(['ALL', 'STANDARD', 'SHIFT', 'FLEXIBLE'] as const).map((tp) => (
+                <button
+                  key={tp}
+                  onClick={() => {
+                    setSelectedType(tp);
+                    setPage(1);
+                  }}
+                  className={`px-2.5 py-1 rounded-full font-medium transition-all ${
+                    selectedType === tp
+                      ? 'bg-brandAccent text-white shadow-xs'
+                      : 'text-slate hover:text-navy'
+                  }`}
+                >
+                  {tp === 'ALL'
+                    ? 'All'
+                    : tp.charAt(0) + tp.slice(1).toLowerCase()}
+                </button>
+              ))}
+            </div>
+
+            <div className="ml-auto text-xs text-mutedText font-medium">
+              Showing {schedules.length} of {total} schedules
             </div>
           </div>
 
-          <div className="p-8 flex-1 flex flex-col max-w-[1600px] w-full mx-auto">
-            {activeTab === 'List' ? (
-              <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col flex-1">
-                {/* Toolbar */}
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="relative w-72">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-mutedText" size={16} />
-                    <input 
-                      type="text" 
-                      placeholder="Search schedules..." 
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full pl-9 pr-4 py-2 bg-white border border-border rounded-full focus:outline-none focus:ring-2 focus:ring-brandAccent/20 focus:border-brandAccent transition-all text-sm text-navy placeholder:text-mutedText shadow-sm"
-                    />
-                  </div>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-white border border-border text-navy font-medium rounded-full hover:bg-surface transition-colors text-sm shadow-sm">
-                    <span>Filter</span>
-                    <ChevronDown size={14} className="text-mutedText" />
-                  </button>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-white border border-border text-navy font-medium rounded-full hover:bg-surface transition-colors text-sm shadow-sm ml-auto">
-                    <Settings size={14} className="text-mutedText" />
-                    <span>Columns</span>
-                  </button>
+          {/* Table Container */}
+          <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm flex-1 flex flex-col">
+            {/* Loading State */}
+            {isLoading ? (
+              <div className="flex-1 flex flex-col items-center justify-center p-16">
+                <Loader2 className="w-8 h-8 text-brandAccent animate-spin mb-3" />
+                <span className="text-sm font-medium text-slate">Loading working schedules...</span>
+              </div>
+            ) : isError ? (
+              /* Error State */
+              <div className="flex-1 flex flex-col items-center justify-center p-16 text-center">
+                <div className="w-12 h-12 rounded-full bg-error/10 text-error flex items-center justify-center mb-3">
+                  <AlertCircle size={24} />
                 </div>
-
-                {/* Table */}
-                <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm flex-1">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-border bg-surface text-xs uppercase tracking-wider text-mutedText font-semibold">
-                        <th className="px-6 py-4 font-semibold">Schedule Name</th>
-                        <th className="px-6 py-4 font-semibold">Days / Week</th>
-                        <th className="px-6 py-4 font-semibold">Hours / Week</th>
-                        <th className="px-6 py-4 font-semibold">Company</th>
-                        <th className="px-6 py-4 font-semibold">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="text-sm text-navy divide-y divide-border">
-                      {filteredSchedules.map((schedule) => (
-                        <tr 
-                          key={schedule.id}
-                          onClick={() => handleOpenDetail(schedule.id)}
-                          className="cursor-pointer transition-all duration-200 hover:bg-surface/50 group"
-                        >
-                          <td className="px-6 py-4 font-medium group-hover:text-brandAccent transition-colors relative">
-                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-brandAccent opacity-0 group-hover:opacity-100 transition-opacity" />
-                            {schedule.name}
-                          </td>
-                          <td className="px-6 py-4 text-slate">{schedule.days.length}</td>
-                          <td className="px-6 py-4 text-slate font-medium">{calculateTotalHours(schedule.days).toFixed(1)}h</td>
-                          <td className="px-6 py-4 text-slate">{schedule.company}</td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                              schedule.status === 'Active' 
-                                ? 'border-success text-success bg-success/10' 
-                                : 'border-mutedText text-mutedText bg-surface'
-                            }`}>
-                              {schedule.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                      {filteredSchedules.length === 0 && (
-                        <tr>
-                          <td colSpan={5} className="px-6 py-12 text-center text-slate">
-                            No schedules found matching your search.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                
-                <p className="mt-4 text-sm text-mutedText text-center">
-                  Select a schedule to open its Form view.
+                <h3 className="text-base font-bold text-navy mb-1">Failed to load schedules</h3>
+                <p className="text-xs text-slate max-w-sm mb-4">
+                  {(error as Error)?.message || 'An error occurred while connecting to the server.'}
                 </p>
+                <button
+                  onClick={() => refetch()}
+                  className="px-4 py-2 bg-brandAccent text-white rounded-full text-xs font-medium hover:bg-[#4a44cc] transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : schedules.length === 0 ? (
+              /* Empty State */
+              <div className="flex-1 flex flex-col items-center justify-center p-16 text-center">
+                <div className="w-12 h-12 rounded-full bg-surface text-brandAccent flex items-center justify-center mb-3">
+                  <Briefcase size={24} />
+                </div>
+                {searchQuery || selectedStatus !== 'ALL' || selectedType !== 'ALL' ? (
+                  <>
+                    <h3 className="text-base font-bold text-navy mb-1">No schedules match your filters</h3>
+                    <p className="text-xs text-slate max-w-sm mb-4">
+                      Try clearing or adjusting your search query or filter tags.
+                    </p>
+                    <button
+                      onClick={() => {
+                        setSearchQuery('');
+                        setSelectedStatus('ALL');
+                        setSelectedType('ALL');
+                        setPage(1);
+                      }}
+                      className="px-4 py-2 border border-border text-navy rounded-full text-xs font-medium hover:bg-surface transition-colors"
+                    >
+                      Clear Filters
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <h3 className="text-base font-bold text-navy mb-1">No working schedules have been created</h3>
+                    <p className="text-xs text-slate max-w-sm mb-4">
+                      Create your first working schedule to establish attendance expectations and weekly shift patterns.
+                    </p>
+                    <Link
+                      to="/schedules/new"
+                      className="px-5 py-2 bg-brandAccent text-white rounded-full text-xs font-medium hover:bg-[#4a44cc] transition-colors"
+                    >
+                      Create Working Schedule
+                    </Link>
+                  </>
+                )}
               </div>
             ) : (
-              // CALENDAR VIEW (Scaffold)
-              <div className="flex-1 flex flex-col items-center justify-center bg-white border border-border rounded-2xl shadow-sm p-12 text-center animate-in fade-in duration-500">
-                <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mb-4 text-brandAccent">
-                  <CalendarIcon size={32} />
+              /* Data Table */
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse min-w-[800px]">
+                  <thead>
+                    <tr className="border-b border-border bg-surface/70 text-xs uppercase tracking-wider text-mutedText font-semibold">
+                      <th className="px-6 py-4 font-semibold">Schedule Name</th>
+                      <th className="px-6 py-4 font-semibold">Type</th>
+                      <th className="px-6 py-4 font-semibold">Days / Week</th>
+                      <th className="px-6 py-4 font-semibold">Hours / Week</th>
+                      <th className="px-6 py-4 font-semibold">Company</th>
+                      <th className="px-6 py-4 font-semibold">Status</th>
+                      <th className="px-6 py-4 font-semibold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm text-navy divide-y divide-border">
+                    {schedules.map((schedule) => {
+                      const weeklyHours = (schedule.weeklyMinutes / 60).toFixed(1);
+                      const isPendingStatus = statusActionId === schedule.id;
+
+                      return (
+                        <tr
+                          key={schedule.id}
+                          onClick={() => navigate(`/schedules/${schedule.id}`)}
+                          className="cursor-pointer transition-colors duration-150 hover:bg-surface/50 group"
+                        >
+                          {/* Schedule Name */}
+                          <td className="px-6 py-4 font-medium group-hover:text-brandAccent transition-colors relative">
+                            <div className="absolute left-0 top-0 bottom-0 w-1 bg-brandAccent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <span>{schedule.name}</span>
+                          </td>
+
+                          {/* Type */}
+                          <td className="px-6 py-4">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                                schedule.type === 'STANDARD'
+                                  ? 'border-blue-200 text-blue-700 bg-blue-50'
+                                  : schedule.type === 'SHIFT'
+                                  ? 'border-purple-200 text-purple-700 bg-purple-50'
+                                  : 'border-amber-200 text-amber-700 bg-amber-50'
+                              }`}
+                            >
+                              {schedule.type.charAt(0) + schedule.type.slice(1).toLowerCase()}
+                            </span>
+                          </td>
+
+                          {/* Days / Week */}
+                          <td className="px-6 py-4 text-slate">
+                            {schedule.daysPerWeek} {schedule.daysPerWeek === 1 ? 'day' : 'days'}
+                          </td>
+
+                          {/* Hours / Week */}
+                          <td className="px-6 py-4 text-slate font-semibold">
+                            {weeklyHours}h
+                          </td>
+
+                          {/* Company */}
+                          <td className="px-6 py-4 text-slate">
+                            {schedule.companyName}
+                          </td>
+
+                          {/* Status Badge */}
+                          <td className="px-6 py-4">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                                schedule.status === 'ACTIVE'
+                                  ? 'border-emerald-200 text-emerald-700 bg-emerald-50'
+                                  : 'border-slate-200 text-slate-600 bg-slate-100'
+                              }`}
+                            >
+                              {schedule.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+
+                          {/* Quick Actions */}
+                          <td className="px-6 py-4 text-right">
+                            <button
+                              type="button"
+                              onClick={(e) => handleToggleStatus(e, schedule)}
+                              disabled={isPendingStatus}
+                              className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors inline-flex items-center gap-1 ${
+                                schedule.status === 'ACTIVE'
+                                  ? 'border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-800'
+                                  : 'border-emerald-200 text-emerald-700 hover:bg-emerald-50'
+                              }`}
+                              title={
+                                schedule.status === 'ACTIVE'
+                                  ? 'Deactivate this schedule'
+                                  : 'Reactivate this schedule'
+                              }
+                            >
+                              {isPendingStatus ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <Power size={12} />
+                              )}
+                              <span>
+                                {schedule.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                              </span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="p-4 border-t border-border bg-surface/30 flex items-center justify-between text-xs text-slate">
+                <span>
+                  Page {page} of {totalPages}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    className="px-3 py-1.5 border border-border rounded-lg bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-surface transition-colors"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    className="px-3 py-1.5 border border-border rounded-lg bg-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-surface transition-colors"
+                  >
+                    Next
+                  </button>
                 </div>
-                <h3 className="text-xl font-display font-semibold text-navy mb-2">Calendar View</h3>
-                <p className="text-slate max-w-md">
-                  This view will provide a timeline/calendar visualization of all schedules across the organization.
-                </p>
               </div>
             )}
           </div>
+
+          <p className="mt-4 text-xs text-mutedText text-center">
+            Click any schedule row to edit its weekly shift pattern and break configurations.
+          </p>
         </div>
-      )}
+      </div>
     </AppLayout>
   );
 }

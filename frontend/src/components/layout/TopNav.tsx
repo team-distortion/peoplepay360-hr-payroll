@@ -109,7 +109,15 @@ export default function TopNav() {
             label="Employees"
             active={isEmployeesActive || isSchedulesActive}
             items={[
-              { label: 'Employees', path: '/employees' },
+              {
+                label: 'Employees',
+                path:
+                  user?.role === 'EMPLOYEE'
+                    ? user?.employeeId
+                      ? `/employees/${user.employeeId}`
+                      : '/employees/me'
+                    : '/employees',
+              },
               { label: 'Contracts', path: '/contracts' },
               { label: 'Departments', path: '#' },
               { label: 'Working Schedule', path: '/schedules' },

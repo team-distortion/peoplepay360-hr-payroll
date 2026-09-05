@@ -1,11 +1,14 @@
-import { Employee } from '../../pages/Employees';
+import type { EmployeeListItemDto } from '@peoplepay360/shared';
 
 interface EmployeeKanbanProps {
-  employees: Employee[];
-  onOpenProfile: (employee: Employee) => void;
+  employees: EmployeeListItemDto[];
+  onSelectEmployee: (id: string) => void;
 }
 
-export default function EmployeeKanban({ employees, onOpenProfile }: EmployeeKanbanProps) {
+export default function EmployeeKanban({
+  employees,
+  onSelectEmployee,
+}: EmployeeKanbanProps) {
   return (
     <div className="p-8 animate-in fade-in duration-300">
       <div className="mb-6">
@@ -17,28 +20,48 @@ export default function EmployeeKanban({ employees, onOpenProfile }: EmployeeKan
         {employees.map((employee, idx) => (
           <div
             key={employee.id}
-            onClick={() => onOpenProfile(employee)}
+            onClick={() => onSelectEmployee(employee.id)}
             className="group cursor-pointer bg-white border border-border rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-150 ease-out hover:-translate-y-0.5"
-            style={{ animationDelay: `${idx * 50}ms`, animationFillMode: 'both' }}
-            // Apply stagger animation
-            ref={(el) => {
-               if (el) {
-                 el.classList.add('animate-in', 'fade-in', 'slide-in-from-bottom-2');
-               }
-            }}
+            style={{ animationDelay: `${idx * 40}ms`, animationFillMode: 'both' }}
           >
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent font-medium text-lg flex-shrink-0">
-                {employee.name.split(' ').map((n) => n[0]).join('')}
+              <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center text-accent font-semibold text-base flex-shrink-0 tracking-wider">
+                {employee.initials}
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-navy truncate">{employee.name}</h3>
-                <p className="text-sm text-slate truncate">{employee.jobTitle}</p>
-                <p className="text-xs text-mutedText mt-0.5 truncate">{employee.department}</p>
-                
-                <div className="mt-4 flex items-center gap-1.5">
-                  <div className={`w-2 h-2 rounded-full ${employee.status === 'Active' ? 'bg-green-500' : 'bg-slate-400'}`} />
-                  <span className="text-xs font-medium text-slate">{employee.status}</span>
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="font-semibold text-navy truncate text-base group-hover:text-accent transition-colors">
+                    {employee.fullName}
+                  </h3>
+                  <span className="text-[10px] uppercase font-bold text-slate bg-surface px-1.5 py-0.5 rounded border border-border flex-shrink-0">
+                    {employee.employeeType.replace('_', ' ')}
+                  </span>
+                </div>
+                <p className="text-sm text-slate truncate mt-0.5">{employee.jobPosition}</p>
+                <p className="text-xs text-mutedText mt-0.5 truncate">
+                  {employee.department?.name || 'No Department'}
+                </p>
+
+                {employee.manager && (
+                  <p className="text-[11px] text-mutedText/80 mt-1 truncate">
+                    Reports to: <span className="text-slate font-medium">{employee.manager.fullName}</span>
+                  </p>
+                )}
+
+                <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5">
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        employee.status === 'ACTIVE' ? 'bg-green-500' : 'bg-slate-400'
+                      }`}
+                    />
+                    <span className="text-xs font-medium text-slate">
+                      {employee.status === 'ACTIVE' ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-mutedText font-mono">
+                    {employee.employeeNumber}
+                  </span>
                 </div>
               </div>
             </div>

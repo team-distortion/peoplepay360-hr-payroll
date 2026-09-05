@@ -28,6 +28,10 @@ describe('Auth & Authorization Integration Tests', () => {
   let activeEmployeeId: string;
   let inactiveUserId: string;
   let adminUserId: string;
+  let fixtureEmployee1Id: string;
+  let fixtureEmployee2Id: string;
+  let fixtureDepartmentId: string;
+  let fixtureScheduleId: string;
 
   beforeAll(async () => {
     // Ensure clean state for test emails
@@ -43,6 +47,57 @@ describe('Auth & Authorization Integration Tests', () => {
       },
     });
 
+    // Create fixture Department and Schedule
+    const dept = await prisma.department.create({
+      data: {
+        name: 'Auth Test Dept',
+        nameKey: 'auth test dept',
+        status: 'ACTIVE',
+      },
+    });
+    fixtureDepartmentId = dept.id;
+
+    const sched = await prisma.workingSchedule.create({
+      data: {
+        name: 'Auth Test Sched',
+        nameKey: 'auth test sched',
+        companyName: 'OXP Pvt Ltd',
+        status: 'ACTIVE',
+      },
+    });
+    fixtureScheduleId = sched.id;
+
+    // Create real Employee fixtures
+    const emp1 = await prisma.employee.create({
+      data: {
+        employeeNumber: 'AUTHEMP001',
+        firstName: 'Auth',
+        lastName: 'Worker',
+        workEmail: 'auth.worker1@example.com',
+        jobPosition: 'Engineer',
+        employeeType: 'FULL_TIME',
+        status: 'ACTIVE',
+        departmentId: fixtureDepartmentId,
+        workingScheduleId: fixtureScheduleId,
+      },
+    });
+    fixtureEmployee1Id = emp1.id;
+
+    const emp2 = await prisma.employee.create({
+      data: {
+        employeeNumber: 'AUTHEMP002',
+        firstName: 'Auth',
+        lastName: 'Inactive',
+        workEmail: 'auth.worker2@example.com',
+        jobPosition: 'Tester',
+        employeeType: 'CONTRACT',
+        status: 'INACTIVE',
+        departmentId: fixtureDepartmentId,
+        workingScheduleId: fixtureScheduleId,
+      },
+    });
+    fixtureEmployee2Id = emp2.id;
+
     const passwordHash = await argon2.hash(testPassword);
 
     const activeEmp = await prisma.user.create({
@@ -50,7 +105,7 @@ describe('Auth & Authorization Integration Tests', () => {
         email: 'test.employee@peoplepay360.dev',
         passwordHash,
         role: Role.EMPLOYEE,
-        employeeId: 'emp_test_001',
+        employeeId: fixtureEmployee1Id,
         isActive: true,
       },
     });
@@ -61,7 +116,7 @@ describe('Auth & Authorization Integration Tests', () => {
         email: 'test.inactive@peoplepay360.dev',
         passwordHash,
         role: Role.EMPLOYEE,
-        employeeId: 'emp_test_002',
+        employeeId: fixtureEmployee2Id,
         isActive: false,
       },
     });
@@ -84,6 +139,21 @@ describe('Auth & Authorization Integration Tests', () => {
         id: { in: [activeEmployeeId, inactiveUserId, adminUserId] },
       },
     });
+    if (fixtureEmployee1Id || fixtureEmployee2Id) {
+      await prisma.employee.deleteMany({
+        where: { id: { in: [fixtureEmployee1Id, fixtureEmployee2Id] } },
+      });
+    }
+    if (fixtureDepartmentId) {
+      await prisma.department.deleteMany({
+        where: { id: fixtureDepartmentId },
+      });
+    }
+    if (fixtureScheduleId) {
+      await prisma.workingSchedule.deleteMany({
+        where: { id: fixtureScheduleId },
+      });
+    }
     await prisma.$disconnect();
     await pgPool.end();
   });
@@ -101,7 +171,7 @@ describe('Auth & Authorization Integration Tests', () => {
         id: activeEmployeeId,
         email: 'test.employee@peoplepay360.dev',
         role: 'EMPLOYEE',
-        employeeId: 'emp_test_001',
+        employeeId: fixtureEmployee1Id,
       });
       expect(res.body.data.passwordHash).toBeUndefined();
       expect(JSON.stringify(res.body)).not.toContain('passwordHash');
@@ -269,7 +339,7 @@ describe('Auth & Authorization Integration Tests', () => {
         id: activeEmployeeId,
         email: 'test.employee@peoplepay360.dev',
         role: 'EMPLOYEE',
-        employeeId: 'emp_test_001',
+        employeeId: fixtureEmployee1Id,
       });
     });
   });

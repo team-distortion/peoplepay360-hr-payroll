@@ -13,6 +13,7 @@ const envSchema = z.object({
   TEST_DATABASE_URL: z.string().optional(),
   SESSION_SECRET: z.string().min(32, 'SESSION_SECRET must be at least 32 characters'),
   CLIENT_ORIGIN: z.string().default('http://localhost:5173'),
+  COMPANY_NAME: z.string().default('OXP Pvt Ltd'),
   COMPANY_CURRENCY: z.string().default('INR'),
   COMPANY_TIMEZONE: z.string().default('Asia/Kolkata'),
   SMTP_HOST: z.string().default('localhost'),
