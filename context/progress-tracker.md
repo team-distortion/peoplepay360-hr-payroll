@@ -4,13 +4,13 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Backend: Phase 0 — Foundation COMPLETE
+- Backend: Phase 1 — Authentication & Authorization COMPLETE
 - Frontend: Initial UI & Canvas Flow Implementation IN PROGRESS
 
 ## Current Goal
 
 - Building the React Canvas flow interface and custom components (Frontend)
-- Connecting frontend components to backend APIs & preparing for Phase 1 Authentication (Backend)
+- Connecting frontend components to Phase 1 Authentication & Authorization endpoints (Backend)
 
 ## Completed
 
@@ -25,6 +25,17 @@ Update this file after every meaningful implementation change.
 - Docker Compose configuration for PostgreSQL and Mailpit (`docker-compose.yml`)
 - Vitest and Supertest integration testing suite
 - TypeScript strict compilation across all workspaces
+
+### Authentication & Authorization (Backend Phase 1)
+- Prisma `User` model and `Role` enum added to `apps/api/prisma/schema.prisma`
+- PostgreSQL `session` table migration (`20260905133907_phase01_auth`) created and deployed to dev & test DBs
+- Database seed script (`apps/api/prisma/seed.ts`) creating 5 users (1 for each role) with Argon2 password hashing
+- Session management using `express-session` and `connect-pg-simple` store (`src/lib/session.ts`)
+- Authentication middleware (`src/middleware/authenticate.ts`) loading active principal from PostgreSQL
+- Role-based authorization middleware (`src/middleware/authorize.ts`) enforcing explicit role permissions
+- Employee ownership authorization helper (`src/lib/ownership.ts`)
+- Auth endpoints: `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `POST /api/v1/auth/logout`
+- Complete integration test suite in `apps/api/tests/auth.test.ts` (10 tests passing)
 
 ### Frontend Setup & UI Routes
 - Initialized frontend with Vite, React, TS, Tailwind, shadcn/ui, and `@xyflow/react`
@@ -41,7 +52,7 @@ Update this file after every meaningful implementation change.
 
 - Implementation of custom Stripe-like nodes and layout components
 - Connect frontend to backend APIs
-- Phase 1 — Authentication & Authorization (User model, session storage, Argon2 password hashing, RBAC middleware)
+- Phase 2 — Employee Management & Contracts (Backend)
 
 ## Open Questions
 
@@ -53,11 +64,11 @@ Update this file after every meaningful implementation change.
 - Decoupled Express app creation (`src/app.ts`) from server execution (`src/server.ts`) to enable clean testing via Supertest.
 - Enforced strict Zod schema parsing at application startup for environment variables.
 - Standardized API response format `{ data: ..., error: ... }` across all endpoints.
+- Enforced session regeneration (`req.session.regenerate`) on successful login to prevent session fixation attacks.
+- Returned identical generic 401 `INVALID_CREDENTIALS` error code and message for both missing user and invalid password to prevent account enumeration.
 
 ## Session Notes
 
-- All Phase 0 backend tasks completed and verified with `npm run typecheck`, `npm run build`, and `npm test`.
-- Express API runs on port 4000 (`http://localhost:4000/api/v1/health`).
-- Frontend UI routes initialized with React Flow canvas development underway.
-
-
+- All Phase 1 backend tasks completed and verified with `npm run typecheck`, `npm run build`, and `npm test` (15/15 tests passing).
+- Express API authentication & authorization endpoints active on port 4000 (`/api/v1/auth/login`, `/api/v1/auth/me`, `/api/v1/auth/logout`).
+- Database seeded with 5 test accounts (`employee@peoplepay360.dev`, `hr.manager@peoplepay360.dev`, `payroll.user@peoplepay360.dev`, `payroll.manager@peoplepay360.dev`, `admin@peoplepay360.dev`).
