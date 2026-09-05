@@ -34,6 +34,7 @@ Update this file after every meaningful implementation change.
 - Implemented the Contracts UI (`/contracts` route) with List and Detail views, including employee filtering
 - Implemented the Working Schedules UI (`/schedules` route) with List and Form views
 - Implemented the Attendance UI (`/attendance` route) with Global Widget, List, and Detail views
+- Implemented the Time Off UI module (`/time-off` routes) with Dashboard, Requests, Allocations, and Types views
 
 ## In Progress
 
