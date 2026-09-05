@@ -17,6 +17,7 @@ import TimeOffDashboard from './pages/time-off/TimeOffDashboard';
 import TimeOffRequests from './pages/time-off/TimeOffRequests';
 import TimeOffAllocations from './pages/time-off/TimeOffAllocations';
 import TimeOffTypes from './pages/time-off/TimeOffTypes';
+import PayrollPage from './pages/Payroll';
 
 function CanvasFlow() {
   return (
@@ -169,6 +170,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <TimeOffTypes />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/payroll/*"
+            element={
+              <ProtectedRoute>
+                <PayrollPage />
               </ProtectedRoute>
             }
           />
