@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { ChevronLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Employee } from '../../pages/Employees';
 
@@ -43,7 +42,7 @@ export default function EmployeeProfile({ employee, onClose }: EmployeeProfilePr
                 Employee
               </button>
               <span>/</span>
-              <span className="font-medium text-navy">{isCreateMode ? 'New Employee' : employee.name}</span>
+              <span className="font-medium text-navy">{isCreateMode || !employee ? 'New Employee' : employee.name}</span>
             </div>
             <p className="text-xs text-mutedText">Main employee form with related HR actions</p>
           </div>
@@ -63,7 +62,6 @@ export default function EmployeeProfile({ employee, onClose }: EmployeeProfilePr
               <div className="flex gap-2 animate-in fade-in slide-in-from-left-2">
                 <button
                   onClick={() => {
-                    // Logic to save goes here
                     setIsEditMode(false);
                     if (isCreateMode) onClose();
                   }}
@@ -84,7 +82,7 @@ export default function EmployeeProfile({ employee, onClose }: EmployeeProfilePr
             )}
           </div>
 
-          {!isCreateMode && (
+          {!isCreateMode && employee && (
             <div className="flex items-center gap-2">
               <button className="px-3 py-1 bg-surface text-navy text-xs font-medium rounded-full hover:bg-surface/80 transition-colors border border-border shadow-sm">
                 Time Off <span className="text-mutedText ml-1">3</span>
@@ -104,7 +102,7 @@ export default function EmployeeProfile({ employee, onClose }: EmployeeProfilePr
         {/* Identity Block */}
         <div className="flex items-start gap-6 mb-8">
           <div className="w-20 h-20 rounded-full bg-accent/10 flex items-center justify-center text-accent font-medium text-2xl flex-shrink-0">
-            {isCreateMode ? '+' : employee.name.split(' ').map((n) => n[0]).join('')}
+            {isCreateMode || !employee ? '+' : employee.name.split(' ').map((n) => n[0]).join('')}
           </div>
           
           <div className="flex-1 mt-1">
@@ -118,7 +116,7 @@ export default function EmployeeProfile({ employee, onClose }: EmployeeProfilePr
                 className="text-3xl font-display font-bold text-navy w-full border-b border-border border-dashed focus:outline-none focus:border-accent bg-transparent pb-1 mb-2 placeholder:text-mutedText animate-in fade-in duration-150"
               />
             ) : (
-              <h2 className="text-3xl font-display font-bold text-navy mb-2">{employee.name}</h2>
+              <h2 className="text-3xl font-display font-bold text-navy mb-2">{employee?.name}</h2>
             )}
 
             <div className="flex items-center gap-2 text-slate text-sm mb-1">
@@ -130,9 +128,9 @@ export default function EmployeeProfile({ employee, onClose }: EmployeeProfilePr
                 </>
               ) : (
                 <>
-                  <span>{employee.jobTitle}</span>
+                  <span>{employee?.jobTitle}</span>
                   <span>•</span>
-                  <span>{employee.department}</span>
+                  <span>{employee?.department}</span>
                 </>
               )}
             </div>
@@ -146,9 +144,9 @@ export default function EmployeeProfile({ employee, onClose }: EmployeeProfilePr
                 </>
               ) : (
                 <>
-                  <span>{employee.email}</span>
+                  <span>{employee?.email}</span>
                   <span>|</span>
-                  <span>{employee.phone}</span>
+                  <span>{employee?.phone}</span>
                 </>
               )}
             </div>
@@ -208,7 +206,7 @@ export default function EmployeeProfile({ employee, onClose }: EmployeeProfilePr
   );
 }
 
-function Field({ label, name, value, isEditMode, onChange }: { label: string, name: string, value: string, isEditMode: boolean, onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }) {
+function Field({ label, name, value, isEditMode, onChange }: { label: string; name: string; value: string; isEditMode: boolean; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void }) {
   return (
     <div className="flex flex-col gap-1">
       <label className="text-xs font-semibold text-mutedText uppercase tracking-wider">{label}</label>

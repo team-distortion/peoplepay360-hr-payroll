@@ -1,4 +1,3 @@
-import React from 'react';
 import { Search, LayoutGrid, List as ListIcon } from 'lucide-react';
 
 interface EmployeesToolbarProps {

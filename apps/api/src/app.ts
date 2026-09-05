@@ -2,6 +2,7 @@ import express, { Express } from 'express';
 import cors from 'cors';
 import { env } from './config/env.js';
 import { apiRouter } from './routes/index.js';
+import { createSessionMiddleware } from './lib/session.js';
 import { notFoundHandler } from './middleware/not-found.js';
 import { errorHandler } from './errors/error-handler.js';
 
@@ -16,6 +17,7 @@ export function createApp(): Express {
   );
 
   app.use(express.json());
+  app.use(createSessionMiddleware());
 
   app.use('/api/v1', apiRouter);
 

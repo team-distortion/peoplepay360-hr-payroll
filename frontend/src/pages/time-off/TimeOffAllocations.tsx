@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Plus, Search, ArrowLeft, Check, X, Info } from 'lucide-react';
 import AppLayout from '../../components/layout/AppLayout';
 

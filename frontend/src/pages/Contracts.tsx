@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import AppLayout from '../components/layout/AppLayout';
 import ContractsToolbar from '../components/contracts/ContractsToolbar';
