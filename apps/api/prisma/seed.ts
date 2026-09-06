@@ -9,6 +9,10 @@ import {
   SalaryRuleCategory,
   SalaryRuleMethod,
   AttendanceStatus,
+  TimeOffUnit,
+  TimeOffApprovalMode,
+  TimeOffPayrollTreatment,
+  TimeOffDecisionStatus,
   Prisma,
 } from '@prisma/client';
 import argon2 from 'argon2';
@@ -41,12 +45,6 @@ const scheduleDays = {
     startMinute: 10 * 60,
     endMinute: 17 * 60,
     breakMinutes: 30,
-  })),
-  weekend: [Weekday.SATURDAY, Weekday.SUNDAY].map((dayOfWeek) => ({
-    dayOfWeek,
-    startMinute: 9 * 60,
-    endMinute: 18 * 60,
-    breakMinutes: 60,
   })),
 };
 
@@ -152,13 +150,6 @@ async function main() {
     status: WorkingScheduleStatus.ACTIVE,
     days: scheduleDays.flexible,
   });
-  const inactiveSchedule = await seedSchedule({
-    name: 'Legacy Weekend Support',
-    nameKey: 'legacy weekend support',
-    type: WorkingScheduleType.SHIFT,
-    status: WorkingScheduleStatus.INACTIVE,
-    days: scheduleDays.weekend,
-  });
 
   console.log('Seeding Departments...');
 
@@ -196,15 +187,6 @@ async function main() {
       name: 'Engineering',
       nameKey: 'engineering',
       status: RecordStatus.ACTIVE,
-    },
-  });
-  const inactiveDepartment = await prisma.department.upsert({
-    where: { nameKey: 'legacy operations' },
-    update: { name: 'Legacy Operations', status: RecordStatus.INACTIVE },
-    create: {
-      name: 'Legacy Operations',
-      nameKey: 'legacy operations',
-      status: RecordStatus.INACTIVE,
     },
   });
 
@@ -358,56 +340,6 @@ async function main() {
     bankAccountNumber: '001234567895',
     bankName: 'HDFC Bank',
     bankIfsc: 'HDFC0005678',
-  });
-
-  await seedEmployee({
-    employeeNumber: 'EMP0007',
-    firstName: 'Meera',
-    lastName: 'Iyer',
-    workEmail: 'meera.iyer@peoplepay360.dev',
-    workPhone: null,
-    jobPosition: 'HR Intern',
-    employeeType: EmployeeType.INTERN,
-    status: RecordStatus.ACTIVE,
-    workLocation: 'Raipur',
-    departmentId: hrDepartment.id,
-    managerId: priya.id,
-    workingScheduleId: standardSchedule.id,
-    personalEmail: null,
-    personalPhone: null,
-    dateOfBirth: new Date('2004-01-30T00:00:00.000Z'),
-    personalAddress: null,
-    emergencyContactName: null,
-    emergencyContactPhone: null,
-    bankAccountName: null,
-    bankAccountNumber: null,
-    bankName: null,
-    bankIfsc: null,
-  });
-
-  await seedEmployee({
-    employeeNumber: 'EMP0008',
-    firstName: 'Rohan',
-    lastName: 'Das',
-    workEmail: 'rohan.das@peoplepay360.dev',
-    workPhone: null,
-    jobPosition: 'Operations Executive',
-    employeeType: EmployeeType.FULL_TIME,
-    status: RecordStatus.INACTIVE,
-    workLocation: 'Raipur',
-    departmentId: inactiveDepartment.id,
-    managerId: neha.id,
-    workingScheduleId: inactiveSchedule.id,
-    personalEmail: null,
-    personalPhone: null,
-    dateOfBirth: new Date('1993-12-10T00:00:00.000Z'),
-    personalAddress: null,
-    emergencyContactName: null,
-    emergencyContactPhone: null,
-    bankAccountName: null,
-    bankAccountNumber: null,
-    bankName: null,
-    bankIfsc: null,
   });
 
   console.log('Seeding User Accounts...');
@@ -841,9 +773,490 @@ async function main() {
     }
   }
 
+  console.log('Seeding Time Off Types...');
+  const paidAnnualLeave = await prisma.timeOffType.upsert({
+    where: { nameKey: 'paid annual leave' },
+    update: {
+      name: 'Paid Annual Leave',
+      description: 'Standard paid annual vacation leave',
+      unit: TimeOffUnit.DAY,
+      requiresAllocation: true,
+      approvalMode: TimeOffApprovalMode.HR_APPROVAL,
+      payrollTreatment: TimeOffPayrollTreatment.PAID,
+      status: RecordStatus.ACTIVE,
+    },
+    create: {
+      name: 'Paid Annual Leave',
+      nameKey: 'paid annual leave',
+      description: 'Standard paid annual vacation leave',
+      unit: TimeOffUnit.DAY,
+      requiresAllocation: true,
+      approvalMode: TimeOffApprovalMode.HR_APPROVAL,
+      payrollTreatment: TimeOffPayrollTreatment.PAID,
+      status: RecordStatus.ACTIVE,
+    },
+  });
+
+  const sickLeave = await prisma.timeOffType.upsert({
+    where: { nameKey: 'sick leave' },
+    update: {
+      name: 'Sick Leave',
+      description: 'Paid sick leave with auto-approval',
+      unit: TimeOffUnit.DAY,
+      requiresAllocation: false,
+      approvalMode: TimeOffApprovalMode.NO_APPROVAL,
+      payrollTreatment: TimeOffPayrollTreatment.PAID,
+      status: RecordStatus.ACTIVE,
+    },
+    create: {
+      name: 'Sick Leave',
+      nameKey: 'sick leave',
+      description: 'Paid sick leave with auto-approval',
+      unit: TimeOffUnit.DAY,
+      requiresAllocation: false,
+      approvalMode: TimeOffApprovalMode.NO_APPROVAL,
+      payrollTreatment: TimeOffPayrollTreatment.PAID,
+      status: RecordStatus.ACTIVE,
+    },
+  });
+
+  const unpaidLeave = await prisma.timeOffType.upsert({
+    where: { nameKey: 'unpaid leave' },
+    update: {
+      name: 'Unpaid Leave',
+      description: 'Unpaid leave of absence',
+      unit: TimeOffUnit.DAY,
+      requiresAllocation: false,
+      approvalMode: TimeOffApprovalMode.HR_APPROVAL,
+      payrollTreatment: TimeOffPayrollTreatment.UNPAID,
+      status: RecordStatus.ACTIVE,
+    },
+    create: {
+      name: 'Unpaid Leave',
+      nameKey: 'unpaid leave',
+      description: 'Unpaid leave of absence',
+      unit: TimeOffUnit.DAY,
+      requiresAllocation: false,
+      approvalMode: TimeOffApprovalMode.HR_APPROVAL,
+      payrollTreatment: TimeOffPayrollTreatment.UNPAID,
+      status: RecordStatus.ACTIVE,
+    },
+  });
+
+  const shortPermission = await prisma.timeOffType.upsert({
+    where: { nameKey: 'short permission' },
+    update: {
+      name: 'Short Permission',
+      description: 'Hourly permission for personal errands',
+      unit: TimeOffUnit.HOUR,
+      requiresAllocation: true,
+      approvalMode: TimeOffApprovalMode.HR_APPROVAL,
+      payrollTreatment: TimeOffPayrollTreatment.PAID,
+      status: RecordStatus.ACTIVE,
+    },
+    create: {
+      name: 'Short Permission',
+      nameKey: 'short permission',
+      description: 'Hourly permission for personal errands',
+      unit: TimeOffUnit.HOUR,
+      requiresAllocation: true,
+      approvalMode: TimeOffApprovalMode.HR_APPROVAL,
+      payrollTreatment: TimeOffPayrollTreatment.PAID,
+      status: RecordStatus.ACTIVE,
+    },
+  });
+
+  await prisma.timeOffType.upsert({
+    where: { nameKey: 'legacy study leave' },
+    update: {
+      name: 'Legacy Study Leave',
+      description: 'Historical inactive study leave policy',
+      unit: TimeOffUnit.DAY,
+      requiresAllocation: true,
+      approvalMode: TimeOffApprovalMode.HR_APPROVAL,
+      payrollTreatment: TimeOffPayrollTreatment.PAID,
+      status: RecordStatus.INACTIVE,
+    },
+    create: {
+      name: 'Legacy Study Leave',
+      nameKey: 'legacy study leave',
+      description: 'Historical inactive study leave policy',
+      unit: TimeOffUnit.DAY,
+      requiresAllocation: true,
+      approvalMode: TimeOffApprovalMode.HR_APPROVAL,
+      payrollTreatment: TimeOffPayrollTreatment.PAID,
+      status: RecordStatus.INACTIVE,
+    },
+  });
+
+  console.log('Seeding Allocations...');
+  // 1. Kabir's Annual Leave: 20 days allocated, 3 days consumed (by approved request below)
+  const kabirAllocAnnual = await prisma.timeOffAllocation.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000701' },
+    update: {
+      allocatedUnits: new Prisma.Decimal('20.0000'),
+      consumedUnits: new Prisma.Decimal('3.0000'),
+      validFrom: new Date('2026-01-01T00:00:00.000Z'),
+      validTo: new Date('2026-12-31T00:00:00.000Z'),
+      status: TimeOffDecisionStatus.APPROVED,
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000701',
+      employeeId: kabir.id,
+      timeOffTypeId: paidAnnualLeave.id,
+      unitSnapshot: TimeOffUnit.DAY,
+      allocatedUnits: new Prisma.Decimal('20.0000'),
+      consumedUnits: new Prisma.Decimal('3.0000'),
+      validFrom: new Date('2026-01-01T00:00:00.000Z'),
+      validTo: new Date('2026-12-31T00:00:00.000Z'),
+      status: TimeOffDecisionStatus.APPROVED,
+      description: 'Kabir 2026 Annual Leave Quota',
+      createdByUserId: adminUser!.id,
+      decidedByUserId: adminUser!.id,
+      decidedAt: new Date('2026-01-02T10:00:00.000Z'),
+      decisionNote: 'Approved annual quota',
+    },
+  });
+
+  // 2. Kabir's Short Permission: 8 hours allocated, 2 hours consumed
+  const kabirAllocHour = await prisma.timeOffAllocation.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000702' },
+    update: {
+      allocatedUnits: new Prisma.Decimal('8.0000'),
+      consumedUnits: new Prisma.Decimal('2.0000'),
+      validFrom: new Date('2026-01-01T00:00:00.000Z'),
+      validTo: new Date('2026-12-31T00:00:00.000Z'),
+      status: TimeOffDecisionStatus.APPROVED,
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000702',
+      employeeId: kabir.id,
+      timeOffTypeId: shortPermission.id,
+      unitSnapshot: TimeOffUnit.HOUR,
+      allocatedUnits: new Prisma.Decimal('8.0000'),
+      consumedUnits: new Prisma.Decimal('2.0000'),
+      validFrom: new Date('2026-01-01T00:00:00.000Z'),
+      validTo: new Date('2026-12-31T00:00:00.000Z'),
+      status: TimeOffDecisionStatus.APPROVED,
+      description: 'Kabir 2026 Permission Hours',
+      createdByUserId: adminUser!.id,
+      decidedByUserId: adminUser!.id,
+      decidedAt: new Date('2026-01-02T10:00:00.000Z'),
+      decisionNote: 'Approved permission hours',
+    },
+  });
+
+  // 3. Vikram's Annual Leave: 15 days allocated, 0 consumed
+  await prisma.timeOffAllocation.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000703' },
+    update: {
+      allocatedUnits: new Prisma.Decimal('15.0000'),
+      consumedUnits: new Prisma.Decimal('0.0000'),
+      validFrom: new Date('2026-01-01T00:00:00.000Z'),
+      validTo: new Date('2026-12-31T00:00:00.000Z'),
+      status: TimeOffDecisionStatus.APPROVED,
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000703',
+      employeeId: vikram.id,
+      timeOffTypeId: paidAnnualLeave.id,
+      unitSnapshot: TimeOffUnit.DAY,
+      allocatedUnits: new Prisma.Decimal('15.0000'),
+      consumedUnits: new Prisma.Decimal('0.0000'),
+      validFrom: new Date('2026-01-01T00:00:00.000Z'),
+      validTo: new Date('2026-12-31T00:00:00.000Z'),
+      status: TimeOffDecisionStatus.APPROVED,
+      description: 'Vikram 2026 Annual Leave Quota',
+      createdByUserId: adminUser!.id,
+      decidedByUserId: adminUser!.id,
+      decidedAt: new Date('2026-01-02T10:00:00.000Z'),
+      decisionNote: 'Approved annual quota',
+    },
+  });
+
+  // 4. Sara's Annual Leave: 18 days allocated, 2 days consumed
+  const saraAllocAnnual = await prisma.timeOffAllocation.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000704' },
+    update: {
+      allocatedUnits: new Prisma.Decimal('18.0000'),
+      consumedUnits: new Prisma.Decimal('2.0000'),
+      validFrom: new Date('2026-01-01T00:00:00.000Z'),
+      validTo: new Date('2026-12-31T00:00:00.000Z'),
+      status: TimeOffDecisionStatus.APPROVED,
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000704',
+      employeeId: sara.id,
+      timeOffTypeId: paidAnnualLeave.id,
+      unitSnapshot: TimeOffUnit.DAY,
+      allocatedUnits: new Prisma.Decimal('18.0000'),
+      consumedUnits: new Prisma.Decimal('2.0000'),
+      validFrom: new Date('2026-01-01T00:00:00.000Z'),
+      validTo: new Date('2026-12-31T00:00:00.000Z'),
+      status: TimeOffDecisionStatus.APPROVED,
+      description: 'Sara 2026 Annual Leave Quota',
+      createdByUserId: adminUser!.id,
+      decidedByUserId: adminUser!.id,
+      decidedAt: new Date('2026-01-02T10:00:00.000Z'),
+      decisionNote: 'Approved annual quota',
+    },
+  });
+
+  // 5. Expired Allocation (Sara 2025): 10 days allocated, validTo in past
+  await prisma.timeOffAllocation.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000705' },
+    update: {
+      validFrom: new Date('2025-01-01T00:00:00.000Z'),
+      validTo: new Date('2025-12-31T00:00:00.000Z'),
+      status: TimeOffDecisionStatus.APPROVED,
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000705',
+      employeeId: sara.id,
+      timeOffTypeId: paidAnnualLeave.id,
+      unitSnapshot: TimeOffUnit.DAY,
+      allocatedUnits: new Prisma.Decimal('10.0000'),
+      consumedUnits: new Prisma.Decimal('10.0000'),
+      validFrom: new Date('2025-01-01T00:00:00.000Z'),
+      validTo: new Date('2025-12-31T00:00:00.000Z'),
+      status: TimeOffDecisionStatus.APPROVED,
+      description: 'Sara 2025 Annual Leave (Expired)',
+      createdByUserId: adminUser!.id,
+      decidedByUserId: adminUser!.id,
+      decidedAt: new Date('2025-01-02T10:00:00.000Z'),
+    },
+  });
+
+  // 6. Refused Allocation: Vikram extra quota
+  await prisma.timeOffAllocation.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000706' },
+    update: {
+      status: TimeOffDecisionStatus.REFUSED,
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000706',
+      employeeId: vikram.id,
+      timeOffTypeId: paidAnnualLeave.id,
+      unitSnapshot: TimeOffUnit.DAY,
+      allocatedUnits: new Prisma.Decimal('5.0000'),
+      consumedUnits: new Prisma.Decimal('0.0000'),
+      validFrom: new Date('2026-07-01T00:00:00.000Z'),
+      validTo: new Date('2026-12-31T00:00:00.000Z'),
+      status: TimeOffDecisionStatus.REFUSED,
+      description: 'Vikram extra requested quota',
+      createdByUserId: adminUser!.id,
+      decidedByUserId: adminUser!.id,
+      decidedAt: new Date('2026-07-02T10:00:00.000Z'),
+      decisionNote: 'Standard quota already assigned',
+    },
+  });
+
+  // 7. Pending Allocation: Kabir extra quota
+  await prisma.timeOffAllocation.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000707' },
+    update: {
+      status: TimeOffDecisionStatus.PENDING,
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000707',
+      employeeId: kabir.id,
+      timeOffTypeId: paidAnnualLeave.id,
+      unitSnapshot: TimeOffUnit.DAY,
+      allocatedUnits: new Prisma.Decimal('5.0000'),
+      consumedUnits: new Prisma.Decimal('0.0000'),
+      validFrom: new Date('2026-09-01T00:00:00.000Z'),
+      validTo: new Date('2026-12-31T00:00:00.000Z'),
+      status: TimeOffDecisionStatus.PENDING,
+      description: 'Kabir additional project incentive quota',
+      createdByUserId: adminUser!.id,
+    },
+  });
+
+  console.log('Seeding Time Off Requests...');
+  // Request 1: Kabir Approved Paid Request (3 days, 2026-09-07 Mon to 2026-09-09 Wed)
+  await prisma.timeOffRequest.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000711' },
+    update: {
+      status: TimeOffDecisionStatus.APPROVED,
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000711',
+      employeeId: kabir.id,
+      timeOffTypeId: paidAnnualLeave.id,
+      allocationId: kabirAllocAnnual.id,
+      unitSnapshot: TimeOffUnit.DAY,
+      requiresAllocationSnapshot: true,
+      payrollTreatmentSnapshot: TimeOffPayrollTreatment.PAID,
+      startDate: new Date('2026-09-07T00:00:00.000Z'),
+      endDate: new Date('2026-09-09T00:00:00.000Z'),
+      requestedUnits: new Prisma.Decimal('3.0000'),
+      reason: 'Family wedding attendance in hometown',
+      status: TimeOffDecisionStatus.APPROVED,
+      createdByUserId: (await prisma.user.findFirst({ where: { employeeId: kabir.id } }))?.id ?? adminUser!.id,
+      decidedByUserId: adminUser!.id,
+      decidedAt: new Date('2026-09-01T12:00:00.000Z'),
+      decisionNote: 'Approved enjoy the wedding',
+    },
+  });
+
+  // Request 2: Kabir Approved Hourly Permission (2 hours, 2026-09-15 10:00-12:00, 600-720)
+  await prisma.timeOffRequest.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000712' },
+    update: {
+      status: TimeOffDecisionStatus.APPROVED,
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000712',
+      employeeId: kabir.id,
+      timeOffTypeId: shortPermission.id,
+      allocationId: kabirAllocHour.id,
+      unitSnapshot: TimeOffUnit.HOUR,
+      requiresAllocationSnapshot: true,
+      payrollTreatmentSnapshot: TimeOffPayrollTreatment.PAID,
+      startDate: new Date('2026-09-15T00:00:00.000Z'),
+      endDate: new Date('2026-09-15T00:00:00.000Z'),
+      startMinute: 600,
+      endMinute: 720,
+      requestedUnits: new Prisma.Decimal('2.0000'),
+      reason: 'Bank visit for account verification',
+      status: TimeOffDecisionStatus.APPROVED,
+      createdByUserId: (await prisma.user.findFirst({ where: { employeeId: kabir.id } }))?.id ?? adminUser!.id,
+      decidedByUserId: adminUser!.id,
+      decidedAt: new Date('2026-09-10T12:00:00.000Z'),
+      decisionNote: 'Approved',
+    },
+  });
+
+  // Request 3: Kabir Pending Request (2 days, 2026-10-12 to 2026-10-13)
+  await prisma.timeOffRequest.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000713' },
+    update: {
+      status: TimeOffDecisionStatus.PENDING,
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000713',
+      employeeId: kabir.id,
+      timeOffTypeId: paidAnnualLeave.id,
+      allocationId: kabirAllocAnnual.id,
+      unitSnapshot: TimeOffUnit.DAY,
+      requiresAllocationSnapshot: true,
+      payrollTreatmentSnapshot: TimeOffPayrollTreatment.PAID,
+      startDate: new Date('2026-10-12T00:00:00.000Z'),
+      endDate: new Date('2026-10-13T00:00:00.000Z'),
+      requestedUnits: new Prisma.Decimal('2.0000'),
+      reason: 'Dussehra festival celebration',
+      status: TimeOffDecisionStatus.PENDING,
+      createdByUserId: (await prisma.user.findFirst({ where: { employeeId: kabir.id } }))?.id ?? adminUser!.id,
+    },
+  });
+
+  // Request 4: Sara Approved Paid Request (2 days, 2026-09-10 to 2026-09-11)
+  await prisma.timeOffRequest.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000714' },
+    update: {
+      status: TimeOffDecisionStatus.APPROVED,
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000714',
+      employeeId: sara.id,
+      timeOffTypeId: paidAnnualLeave.id,
+      allocationId: saraAllocAnnual.id,
+      unitSnapshot: TimeOffUnit.DAY,
+      requiresAllocationSnapshot: true,
+      payrollTreatmentSnapshot: TimeOffPayrollTreatment.PAID,
+      startDate: new Date('2026-09-10T00:00:00.000Z'),
+      endDate: new Date('2026-09-11T00:00:00.000Z'),
+      requestedUnits: new Prisma.Decimal('2.0000'),
+      reason: 'Extended weekend travel',
+      status: TimeOffDecisionStatus.APPROVED,
+      createdByUserId: (await prisma.user.findFirst({ where: { employeeId: sara.id } }))?.id ?? adminUser!.id,
+      decidedByUserId: adminUser!.id,
+      decidedAt: new Date('2026-09-02T10:00:00.000Z'),
+      decisionNote: 'Approved',
+    },
+  });
+
+  // Request 5: Sara Approved Unpaid Request (1 day, 2026-09-18)
+  await prisma.timeOffRequest.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000715' },
+    update: {
+      status: TimeOffDecisionStatus.APPROVED,
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000715',
+      employeeId: sara.id,
+      timeOffTypeId: unpaidLeave.id,
+      allocationId: null,
+      unitSnapshot: TimeOffUnit.DAY,
+      requiresAllocationSnapshot: false,
+      payrollTreatmentSnapshot: TimeOffPayrollTreatment.UNPAID,
+      startDate: new Date('2026-09-18T00:00:00.000Z'),
+      endDate: new Date('2026-09-18T00:00:00.000Z'),
+      requestedUnits: new Prisma.Decimal('1.0000'),
+      reason: 'Personal emergency leave',
+      status: TimeOffDecisionStatus.APPROVED,
+      createdByUserId: (await prisma.user.findFirst({ where: { employeeId: sara.id } }))?.id ?? adminUser!.id,
+      decidedByUserId: adminUser!.id,
+      decidedAt: new Date('2026-09-17T15:00:00.000Z'),
+      decisionNote: 'Approved as unpaid leave',
+    },
+  });
+
+  // Request 6: Kabir Auto-approved Sick Leave (1 day, 2026-09-21)
+  await prisma.timeOffRequest.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000716' },
+    update: {
+      status: TimeOffDecisionStatus.APPROVED,
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000716',
+      employeeId: kabir.id,
+      timeOffTypeId: sickLeave.id,
+      allocationId: null,
+      unitSnapshot: TimeOffUnit.DAY,
+      requiresAllocationSnapshot: false,
+      payrollTreatmentSnapshot: TimeOffPayrollTreatment.PAID,
+      startDate: new Date('2026-09-21T00:00:00.000Z'),
+      endDate: new Date('2026-09-21T00:00:00.000Z'),
+      requestedUnits: new Prisma.Decimal('1.0000'),
+      reason: 'Migraine headache recovery',
+      status: TimeOffDecisionStatus.APPROVED,
+      createdByUserId: (await prisma.user.findFirst({ where: { employeeId: kabir.id } }))?.id ?? adminUser!.id,
+      decidedByUserId: (await prisma.user.findFirst({ where: { employeeId: kabir.id } }))?.id ?? adminUser!.id,
+      decidedAt: new Date('2026-09-21T08:00:00.000Z'),
+      decisionNote: 'Auto-approved',
+    },
+  });
+
+  // Request 7: Vikram Refused Request (1 day, 2026-09-28)
+  await prisma.timeOffRequest.upsert({
+    where: { id: '00000000-0000-0000-0000-000000000717' },
+    update: {
+      status: TimeOffDecisionStatus.REFUSED,
+    },
+    create: {
+      id: '00000000-0000-0000-0000-000000000717',
+      employeeId: vikram.id,
+      timeOffTypeId: paidAnnualLeave.id,
+      allocationId: '00000000-0000-0000-0000-000000000703',
+      unitSnapshot: TimeOffUnit.DAY,
+      requiresAllocationSnapshot: true,
+      payrollTreatmentSnapshot: TimeOffPayrollTreatment.PAID,
+      startDate: new Date('2026-09-28T00:00:00.000Z'),
+      endDate: new Date('2026-09-28T00:00:00.000Z'),
+      requestedUnits: new Prisma.Decimal('1.0000'),
+      reason: 'Personal day off',
+      status: TimeOffDecisionStatus.REFUSED,
+      createdByUserId: (await prisma.user.findFirst({ where: { employeeId: vikram.id } }))?.id ?? adminUser!.id,
+      decidedByUserId: adminUser!.id,
+      decidedAt: new Date('2026-09-25T11:00:00.000Z'),
+      decisionNote: 'Quarter-end payroll closing priority',
+    },
+  });
+
   console.log('Seed completed successfully.');
   console.log(
-    'Created/updated: 3 schedules, 5 departments, 8 employees, 5 users, 1 salary structure with 7 rules, 3 contracts, 7 attendance records.'
+    'Created/updated: 2 schedules, 4 departments, 6 employees, 5 users, 1 salary structure with 7 rules, 3 contracts, 7 attendance records, 5 time off types, 7 allocations, 7 requests.'
   );
   console.log(`Development login password: ${DEV_PASSWORD}`);
 }

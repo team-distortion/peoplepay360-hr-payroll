@@ -79,7 +79,9 @@ export function toEmployeeListItemDto(employee: EmployeeWithRelations): Employee
 export function toEmployeeDetailDto(
   employee: EmployeeWithRelations,
   contractCount?: number,
-  attendanceCount?: number
+  attendanceCount?: number,
+  timeOffRequestCount?: number,
+  timeOffAllocationCount?: number
 ): EmployeeDetailDto {
   const listItem = toEmployeeListItemDto(employee);
 
@@ -109,6 +111,8 @@ export function toEmployeeDetailDto(
       : null,
     contractCount: contractCount ?? (employee as any)._count?.contracts ?? 0,
     attendanceCount: attendanceCount ?? (employee as any)._count?.attendances ?? 0,
+    timeOffRequestCount: timeOffRequestCount ?? (employee as any)._count?.timeOffRequests ?? 0,
+    timeOffAllocationCount: timeOffAllocationCount ?? (employee as any)._count?.timeOffAllocations ?? 0,
     createdAt: employee.createdAt.toISOString(),
     updatedAt: employee.updatedAt.toISOString(),
   };
