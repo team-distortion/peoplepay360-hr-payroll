@@ -108,6 +108,16 @@ List the exact implementation sequence and responsibilities for schemas,
 services, controllers, routes, shared types, errors, and audit events. Keep
 controllers thin and business logic in services.
 
+### Seed-data policy for Phase 9 onward
+
+While the Prisma schema is still evolving, extend the existing
+`apps/api/prisma/seed.ts` only with the minimum idempotent fixtures required to
+test the current feature. Preserve earlier fixtures and do not refactor the
+seed architecture, add Faker, or implement the final 200-Employee generator.
+Defer modular seed functions and comprehensive mock-data generation until the
+remaining schema phases are stable. State explicitly when a feature requires
+no seed change.
+
 ## 12. Frontend Implementation
 
 Define routes, data hooks, forms, UI states, permission-driven visibility,

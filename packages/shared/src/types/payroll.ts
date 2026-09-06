@@ -40,7 +40,7 @@ export const PayrunEligibilityInputSchema = z.object({
   departmentId: z.string().uuid().optional(),
   employeeType: z.enum(EmployeeTypeValues).optional(),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(50),
+  pageSize: z.coerce.number().int().min(1).max(500).default(50),
 });
 export type PayrunEligibilityInput = z.infer<typeof PayrunEligibilityInputSchema>;
 

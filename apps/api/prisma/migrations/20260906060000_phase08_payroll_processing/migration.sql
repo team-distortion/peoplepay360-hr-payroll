@@ -1,7 +1,4 @@
 -- CreateEnum
-CREATE TYPE "AttendanceStatus" AS ENUM ('PRESENT', 'ABSENT', 'LATE');
-
--- CreateEnum
 CREATE TYPE "PayrollStatus" AS ENUM ('DRAFT', 'COMPUTED', 'VALIDATED', 'PAID');
 
 -- CreateEnum
@@ -12,67 +9,6 @@ CREATE TYPE "PayrollWarningType" AS ENUM ('MISSING_ATTENDANCE', 'OPEN_ATTENDANCE
 
 -- CreateSequence
 CREATE SEQUENCE IF NOT EXISTS payrun_number_seq START WITH 1 INCREMENT BY 1;
-
--- CreateTable Contract
-CREATE TABLE "Contract" (
-    "id" TEXT NOT NULL,
-    "contractNumber" TEXT NOT NULL,
-    "employeeId" TEXT NOT NULL,
-    "salaryStructureId" TEXT NOT NULL,
-    "workingScheduleId" TEXT,
-    "jobPosition" TEXT NOT NULL,
-    "startDate" DATE NOT NULL,
-    "endDate" DATE,
-    "monthlyWage" DECIMAL(18,2) NOT NULL,
-    "status" "RecordStatus" NOT NULL DEFAULT 'ACTIVE',
-    "createdAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMPTZ(3) NOT NULL,
-
-    CONSTRAINT "Contract_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable Attendance
-CREATE TABLE "Attendance" (
-    "id" TEXT NOT NULL,
-    "employeeId" TEXT NOT NULL,
-    "date" DATE NOT NULL,
-    "status" "AttendanceStatus" NOT NULL DEFAULT 'PRESENT',
-    "checkIn" TIMESTAMPTZ(3),
-    "checkOut" TIMESTAMPTZ(3),
-    "workedMinutes" INTEGER NOT NULL DEFAULT 0,
-    "overtimeMinutes" INTEGER NOT NULL DEFAULT 0,
-    "createdAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMPTZ(3) NOT NULL,
-
-    CONSTRAINT "Attendance_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable TimeOffRequest
-CREATE TABLE "TimeOffRequest" (
-    "id" TEXT NOT NULL,
-    "employeeId" TEXT NOT NULL,
-    "startDate" DATE NOT NULL,
-    "endDate" DATE NOT NULL,
-    "isPaid" BOOLEAN NOT NULL DEFAULT true,
-    "status" "RecordStatus" NOT NULL DEFAULT 'ACTIVE',
-    "createdAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMPTZ(3) NOT NULL,
-
-    CONSTRAINT "TimeOffRequest_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable AuditLog
-CREATE TABLE "AuditLog" (
-    "id" TEXT NOT NULL,
-    "actorUserId" TEXT,
-    "entityType" TEXT NOT NULL,
-    "entityId" TEXT NOT NULL,
-    "action" TEXT NOT NULL,
-    "details" JSONB,
-    "createdAt" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
-);
 
 -- CreateTable Payrun
 CREATE TABLE "Payrun" (
@@ -181,25 +117,14 @@ CREATE TABLE "PayrollWarning" (
     CONSTRAINT "PayrollWarning_pkey" PRIMARY KEY ("id")
 );
 
--- Indexes for Contract
-CREATE UNIQUE INDEX "Contract_contractNumber_key" ON "Contract"("contractNumber");
-CREATE INDEX "Contract_employeeId_idx" ON "Contract"("employeeId");
-CREATE INDEX "Contract_salaryStructureId_idx" ON "Contract"("salaryStructureId");
-CREATE INDEX "Contract_workingScheduleId_idx" ON "Contract"("workingScheduleId");
-CREATE INDEX "Contract_status_idx" ON "Contract"("status");
-CREATE INDEX "Contract_startDate_endDate_idx" ON "Contract"("startDate", "endDate");
+-- CreateTable Session
+CREATE TABLE IF NOT EXISTS "session" (
+    "sid" TEXT NOT NULL,
+    "sess" JSONB NOT NULL,
+    "expire" TIMESTAMPTZ(6) NOT NULL,
 
--- Indexes for Attendance
-CREATE UNIQUE INDEX "Attendance_employeeId_date_key" ON "Attendance"("employeeId", "date");
-CREATE INDEX "Attendance_date_idx" ON "Attendance"("date");
-
--- Indexes for TimeOffRequest
-CREATE INDEX "TimeOffRequest_employeeId_startDate_endDate_idx" ON "TimeOffRequest"("employeeId", "startDate", "endDate");
-
--- Indexes for AuditLog
-CREATE INDEX "AuditLog_entityType_entityId_idx" ON "AuditLog"("entityType", "entityId");
-CREATE INDEX "AuditLog_action_idx" ON "AuditLog"("action");
-CREATE INDEX "AuditLog_createdAt_idx" ON "AuditLog"("createdAt");
+    CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
+);
 
 -- Indexes for Payrun
 CREATE UNIQUE INDEX "Payrun_payrunNumber_key" ON "Payrun"("payrunNumber");
@@ -224,19 +149,8 @@ CREATE INDEX "PayrollWarning_payrunId_status_blocking_idx" ON "PayrollWarning"("
 CREATE INDEX "PayrollWarning_payslipId_status_idx" ON "PayrollWarning"("payslipId", "status");
 CREATE INDEX "PayrollWarning_type_status_idx" ON "PayrollWarning"("type", "status");
 
--- Foreign Keys for Contract
-ALTER TABLE "Contract" ADD CONSTRAINT "Contract_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "Contract" ADD CONSTRAINT "Contract_salaryStructureId_fkey" FOREIGN KEY ("salaryStructureId") REFERENCES "SalaryStructure"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-ALTER TABLE "Contract" ADD CONSTRAINT "Contract_workingScheduleId_fkey" FOREIGN KEY ("workingScheduleId") REFERENCES "WorkingSchedule"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- Foreign Keys for Attendance
-ALTER TABLE "Attendance" ADD CONSTRAINT "Attendance_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- Foreign Keys for TimeOffRequest
-ALTER TABLE "TimeOffRequest" ADD CONSTRAINT "TimeOffRequest_employeeId_fkey" FOREIGN KEY ("employeeId") REFERENCES "Employee"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- Foreign Keys for AuditLog
-ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_actorUserId_fkey" FOREIGN KEY ("actorUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+-- Indexes for Session
+CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session"("expire");
 
 -- Foreign Keys for Payrun
 ALTER TABLE "Payrun" ADD CONSTRAINT "Payrun_salaryStructureId_fkey" FOREIGN KEY ("salaryStructureId") REFERENCES "SalaryStructure"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

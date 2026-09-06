@@ -119,7 +119,7 @@ export default function TopNav() {
                     : '/employees',
               },
               { label: 'Contracts', path: '/contracts' },
-              { label: 'Departments', path: '#' },
+              { label: 'Departments', path: '/departments' },
               { label: 'Working Schedule', path: '/schedules' },
             ]}
           />
