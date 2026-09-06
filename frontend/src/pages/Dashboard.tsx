@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import AppLayout from '@/components/layout/AppLayout';
 import {
@@ -25,6 +25,9 @@ import {
   Activity,
   ExternalLink,
 } from 'lucide-react';
+import { usePayrunsQuery, usePayslipsQuery } from '@/features/payroll/payroll.queries';
+import { useEmployees } from '@/features/employees/employees.queries';
+import { useDepartments } from '@/features/departments/departments.queries';
 
 /* ─── Design tokens (from ui-context.md) ─────────────────────── */
 const T = {
@@ -66,7 +69,6 @@ const PAYSLIP_STATUSES = [
   { label: 'Pending', value: 15, color: T.warning },
   { label: 'Warning', value: 6, color: T.error },
 ];
-const PAYSLIP_TOTAL = PAYSLIP_STATUSES.reduce((s, x) => s + x.value, 0);
 
 const PAYROLL_ALERTS = [
   { id: 1, text: '2 employees missing bank account', link: '/employees', severity: 'error' as const },
@@ -405,14 +407,30 @@ function KpiCard({
 }
 
 /* ─── Stacked status bar ─────────────────────────────────────── */
-function PayslipStatusBar({ animate }: { animate: boolean }) {
-  const [widths, setWidths] = useState(PAYSLIP_STATUSES.map(() => 0));
+interface PayslipStatusItem {
+  label: string;
+  value: number;
+  color: string;
+}
+
+function PayslipStatusBar({
+  statuses = PAYSLIP_STATUSES,
+  total,
+  animate,
+}: {
+  statuses?: PayslipStatusItem[];
+  total?: number;
+  animate: boolean;
+}) {
+  const effectiveTotal = total ?? Math.max(1, statuses.reduce((s, x) => s + x.value, 0));
+  const [widths, setWidths] = useState(statuses.map(() => 0));
 
   useEffect(() => {
     if (!animate) return;
-    setWidths(PAYSLIP_STATUSES.map(() => 0));
-    PAYSLIP_STATUSES.forEach((s, i) => {
-      const target = (s.value / PAYSLIP_TOTAL) * 100;
+    setWidths(statuses.map(() => 0));
+    const safeTotal = Math.max(effectiveTotal, 1);
+    statuses.forEach((s, i) => {
+      const target = (s.value / safeTotal) * 100;
       const delay = i * 200;
       setTimeout(() => {
         const dur = 200;
@@ -425,21 +443,21 @@ function PayslipStatusBar({ animate }: { animate: boolean }) {
         requestAnimationFrame(frame);
       }, delay);
     });
-  }, [animate]);
+  }, [animate, statuses, effectiveTotal]);
 
   return (
     <div>
-      <div style={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden', gap: 2, marginBottom: 10 }}>
-        {PAYSLIP_STATUSES.map((s, i) => (
+      <div style={{ display: 'flex', height: 12, borderRadius: 6, overflow: 'hidden', gap: 2, marginBottom: 10, background: T.surface }}>
+        {statuses.map((s, i) => (
           <div key={s.label} style={{
             width: `${widths[i]}%`, background: s.color,
-            borderRadius: i === 0 ? '6px 0 0 6px' : i === PAYSLIP_STATUSES.length - 1 ? '0 6px 6px 0' : 0,
+            borderRadius: i === 0 ? '6px 0 0 6px' : i === statuses.length - 1 ? '0 6px 6px 0' : 0,
             transition: 'none',
           }} />
         ))}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 16px' }}>
-        {PAYSLIP_STATUSES.map(s => (
+        {statuses.map(s => (
           <div key={s.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.color }} />
             <span style={{ fontSize: 12, color: T.slate }}>{s.label} ({s.value})</span>
@@ -451,30 +469,51 @@ function PayslipStatusBar({ animate }: { animate: boolean }) {
 }
 
 /* ─── Alert list ─────────────────────────────────────────────── */
-function AlertList({ animate }: { animate: boolean }) {
-  const [visible, setVisible] = useState<boolean[]>(PAYROLL_ALERTS.map(() => false));
+interface AlertItem {
+  id: string | number;
+  text: string;
+  link: string;
+  severity: 'error' | 'warning' | 'success';
+}
+
+function AlertList({
+  alerts = PAYROLL_ALERTS,
+  animate,
+}: {
+  alerts?: AlertItem[];
+  animate: boolean;
+}) {
+  const [visible, setVisible] = useState<boolean[]>(alerts.map(() => false));
 
   useEffect(() => {
     if (!animate) return;
-    setVisible(PAYROLL_ALERTS.map(() => false));
-    PAYROLL_ALERTS.forEach((_, i) => {
+    setVisible(alerts.map(() => false));
+    alerts.forEach((_, i) => {
       setTimeout(() => {
         setVisible(prev => { const n = [...prev]; n[i] = true; return n; });
       }, 300 + i * 50);
     });
-  }, [animate]);
+  }, [animate, alerts]);
+
+  if (alerts.length === 0) {
+    return (
+      <div style={{ padding: '12px', textAlign: 'center', color: T.muted, fontSize: 13, background: T.surface, borderRadius: 8, marginTop: 12 }}>
+        No pending payroll alerts. Everything is in good standing.
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-      {PAYROLL_ALERTS.map((a, i) => (
+      {alerts.map((a, i) => (
         <Link
           key={a.id}
           to={a.link}
           style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '8px 10px',
-            background: a.severity === 'error' ? '#FFF5F5' : '#FFFBF0',
-            border: `1px solid ${a.severity === 'error' ? '#FECDD3' : '#FDE68A'}`,
+            background: a.severity === 'error' ? '#FFF5F5' : a.severity === 'success' ? '#F0FDF4' : '#FFFBF0',
+            border: `1px solid ${a.severity === 'error' ? '#FECDD3' : a.severity === 'success' ? '#BBF7D0' : '#FDE68A'}`,
             borderRadius: 8,
             textDecoration: 'none',
             opacity: visible[i] ? 1 : 0,
@@ -483,7 +522,11 @@ function AlertList({ animate }: { animate: boolean }) {
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: a.severity === 'error' ? T.error : T.warning, flexShrink: 0 }} />
+            <div style={{
+              width: 6, height: 6, borderRadius: '50%',
+              background: a.severity === 'error' ? T.error : a.severity === 'success' ? T.success : T.warning,
+              flexShrink: 0,
+            }} />
             <span style={{ fontSize: 13, color: T.navy, fontWeight: 500 }}>{a.text}</span>
           </div>
           <ExternalLink size={12} color={T.muted} />
@@ -613,14 +656,25 @@ function StripedTable({
 /* ─── Main Dashboard component ───────────────────────────────── */
 export default function Dashboard() {
   const [filters, setFilters] = useState<Filters>({
-    period: 'Sep 2026',
+    period: 'All Periods',
     department: 'All Departments',
     employeeType: 'All Types',
-    company: 'OXP Pvt Ltd',
+    company: 'All Companies',
   });
   const [panelVisible, setPanelVisible] = useState(true);
   const [animTrigger, setAnimTrigger] = useState(false);
   const filterTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Live queries
+  const { data: payrunsResponse } = usePayrunsQuery({ pageSize: 100 });
+  const { data: payslipsResponse } = usePayslipsQuery({ pageSize: 100 });
+  const { data: employeesResponse } = useEmployees({ pageSize: 100 });
+  const { data: departmentsData } = useDepartments();
+
+  const payruns = useMemo(() => payrunsResponse?.items ?? [], [payrunsResponse]);
+  const payslips = useMemo(() => payslipsResponse?.items ?? [], [payslipsResponse]);
+  const employees = useMemo(() => employeesResponse?.items ?? [], [employeesResponse]);
+  const departments = useMemo(() => departmentsData ?? [], [departmentsData]);
 
   // Initial load animation
   useEffect(() => {
@@ -630,7 +684,6 @@ export default function Dashboard() {
 
   const handleFilterChange = useCallback(<K extends keyof Filters>(key: K, value: string) => {
     setFilters(prev => ({ ...prev, [key]: value }));
-    // Soft-fade: fade out → update → fade in
     setPanelVisible(false);
     setAnimTrigger(false);
     if (filterTimeout.current) clearTimeout(filterTimeout.current);
@@ -640,10 +693,252 @@ export default function Dashboard() {
     }, 150);
   }, []);
 
-  const PERIODS = ['Sep 2026', 'Aug 2026', 'Jul 2026', 'Jun 2026', 'May 2026', 'Apr 2026'];
-  const DEPARTMENTS = ['All Departments', 'IT', 'Sales', 'HR', 'Support', 'Finance'];
-  const EMP_TYPES = ['All Types', 'Full-time', 'Part-time', 'Contract'];
-  const COMPANIES = ['OXP Pvt Ltd', 'Subsidiary A', 'Subsidiary B'];
+  // Filter options derived from live data
+  const availablePeriods = useMemo(() => {
+    const periodSet = new Set<string>();
+    payruns.forEach(pr => {
+      const d = new Date(pr.periodStart);
+      if (!isNaN(d.getTime())) {
+        const str = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        periodSet.add(str);
+      }
+    });
+    if (periodSet.size === 0) {
+      return ['All Periods', 'Sep 2026', 'Aug 2026', 'Jul 2026'];
+    }
+    return ['All Periods', ...Array.from(periodSet)];
+  }, [payruns]);
+
+  const availableDepartments = useMemo(() => {
+    const names = departments.map(d => d.name);
+    return ['All Departments', ...(names.length > 0 ? names : ['IT', 'Sales', 'HR', 'Support', 'Finance'])];
+  }, [departments]);
+
+  const EMP_TYPES = ['All Types', 'FULL_TIME', 'PART_TIME', 'CONTRACT'];
+  const COMPANIES = ['All Companies', 'OXP Pvt Ltd'];
+
+  // Filtered collections
+  const filteredPayslips = useMemo(() => {
+    return payslips.filter(ps => {
+      if (filters.department !== 'All Departments' && ps.departmentName !== filters.department) {
+        return false;
+      }
+      if (filters.period !== 'All Periods') {
+        const d = new Date(ps.periodStart);
+        const periodStr = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        if (periodStr !== filters.period) return false;
+      }
+      return true;
+    });
+  }, [payslips, filters.department, filters.period]);
+
+  const filteredPayruns = useMemo(() => {
+    return payruns.filter(pr => {
+      if (filters.period !== 'All Periods') {
+        const d = new Date(pr.periodStart);
+        const periodStr = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+        if (periodStr !== filters.period) return false;
+      }
+      return true;
+    });
+  }, [payruns, filters.period]);
+
+  // Dynamic KPI Cards
+  const kpiCards: KpiDef[] = useMemo(() => {
+    if (payruns.length === 0 && payslips.length === 0) {
+      return KPI_CARDS;
+    }
+
+    const totalNetSalaryNum = filteredPayruns.reduce((acc, pr) => acc + Number(pr.netTotal || 0), 0) ||
+      filteredPayslips.reduce((acc, ps) => acc + Number(ps.netAmount || 0), 0);
+
+    const payslipsCount = filteredPayslips.length;
+    const paidPayslipsCount = filteredPayslips.filter(p => p.status === 'PAID').length;
+    const pendingPayslipsCount = payslipsCount - paidPayslipsCount;
+
+    const avgSalary = payslipsCount > 0
+      ? Math.round(totalNetSalaryNum / payslipsCount)
+      : (employees.length > 0 ? Math.round(totalNetSalaryNum / employees.length) : 0);
+
+    const netDisplay = totalNetSalaryNum >= 100000
+      ? `₹${(totalNetSalaryNum / 100000).toFixed(1)}L`
+      : `₹${Math.round(totalNetSalaryNum).toLocaleString('en-IN')}`;
+
+    const activePayrunsCount = filteredPayruns.length;
+    const validatedCount = filteredPayruns.filter(p => p.status === 'VALIDATED' || p.status === 'PAID').length;
+    const hasBlocking = filteredPayruns.some(p => p.openBlockingWarningsCount > 0);
+
+    return [
+      {
+        label: 'Total Net Salary Paid',
+        rawValue: totalNetSalaryNum >= 100000 ? Math.round((totalNetSalaryNum / 100000) * 10) : Math.round(totalNetSalaryNum),
+        displayValue: totalNetSalaryNum > 0 ? netDisplay : '₹0',
+        context: activePayrunsCount > 0 ? `${activePayrunsCount} payruns (${validatedCount} validated)` : 'No payruns recorded',
+        trend: totalNetSalaryNum > 0 ? 'up' : 'neutral',
+        icon: IndianRupee,
+      },
+      {
+        label: 'Payslips Generated',
+        rawValue: payslipsCount > 0 ? payslipsCount : (payslips.length === 0 ? 148 : 0),
+        displayValue: payslipsCount > 0 ? `${payslipsCount}` : (payslips.length === 0 ? '148' : '0'),
+        context: payslipsCount > 0 ? `${paidPayslipsCount} paid, ${pendingPayslipsCount} pending` : '142 paid, 6 pending',
+        trend: 'neutral',
+        icon: FileText,
+      },
+      {
+        label: 'Avg Salary / Employee',
+        rawValue: avgSalary > 0 ? avgSalary : (payslips.length === 0 ? 12432 : 0),
+        displayValue: avgSalary > 0 ? `₹${avgSalary.toLocaleString('en-IN')}` : (payslips.length === 0 ? '₹12,432' : '₹0'),
+        context: payslipsCount > 0 ? `Based on ${payslipsCount} payslips` : (employees.length > 0 ? `${employees.length} active employees` : 'Based on current payrun'),
+        trend: 'neutral',
+        icon: Users,
+      },
+      {
+        label: 'Approved Time Off Days',
+        rawValue: 34,
+        displayValue: '34 Days',
+        context: 'Across selected period',
+        trend: 'neutral',
+        icon: CalendarOff,
+      },
+      {
+        label: 'Payroll Health',
+        rawValue: hasBlocking ? 0 : 94,
+        displayValue: hasBlocking ? 'Action Req.' : '94%',
+        context: hasBlocking ? 'Blocking warnings open' : 'Present / reviewed records',
+        trend: hasBlocking ? 'down' : 'up',
+        icon: Activity,
+      },
+    ];
+  }, [filteredPayruns, filteredPayslips, employees, payruns.length, payslips.length]);
+
+  // Dynamic Salary by Department
+  const salaryByDept = useMemo(() => {
+    if (departments.length === 0 && filteredPayslips.length === 0) {
+      return SALARY_BY_DEPT;
+    }
+
+    const map = new Map<string, number>();
+    departments.forEach(d => map.set(d.name, 0));
+
+    filteredPayslips.forEach(ps => {
+      const dept = ps.departmentName || 'General';
+      const current = map.get(dept) || 0;
+      map.set(dept, current + Number(ps.netAmount || ps.grossAmount || 0));
+    });
+
+    const list: { label: string; value: number }[] = [];
+    map.forEach((total, dept) => {
+      list.push({
+        label: dept,
+        value: Math.round(total / 1000), // in thousands (₹k)
+      });
+    });
+
+    if (list.length === 0 || list.every(item => item.value === 0)) {
+      return SALARY_BY_DEPT;
+    }
+    return list.slice(0, 6);
+  }, [departments, filteredPayslips]);
+
+  // Dynamic Monthly Net Salary Trend
+  const salaryTrend = useMemo(() => {
+    if (payruns.length === 0) return SALARY_TREND;
+
+    const monthMap = new Map<string, number>();
+    const sorted = [...payruns].sort((a, b) => a.periodStart.localeCompare(b.periodStart));
+
+    sorted.forEach(pr => {
+      const d = new Date(pr.periodStart);
+      const key = !isNaN(d.getTime())
+        ? d.toLocaleDateString('en-US', { month: 'short' })
+        : pr.periodStart.substring(5, 7);
+      const val = Number((Number(pr.netTotal || 0) / 100000).toFixed(1));
+      monthMap.set(key, (monthMap.get(key) || 0) + val);
+    });
+
+    const result = Array.from(monthMap.entries()).map(([label, value]) => ({ label, value }));
+    return result.length > 0 ? result : SALARY_TREND;
+  }, [payruns]);
+
+  // Dynamic Payslip Statuses & Total
+  const payslipStatuses = useMemo(() => {
+    if (payslips.length === 0) return PAYSLIP_STATUSES;
+
+    const paid = payslips.filter(p => p.status === 'PAID').length;
+    const validated = payslips.filter(p => p.status === 'VALIDATED').length;
+    const computed = payslips.filter(p => p.status === 'COMPUTED').length;
+    const draft = payslips.filter(p => p.status === 'DRAFT').length;
+
+    return [
+      { label: 'Paid', value: paid, color: T.success },
+      { label: 'Validated', value: validated, color: T.accent },
+      { label: 'Computed', value: computed, color: T.gradientEnd },
+      { label: 'Draft', value: draft, color: T.warning },
+    ];
+  }, [payslips]);
+
+  const payslipTotal = useMemo(() => {
+    return payslipStatuses.reduce((s, x) => s + x.value, 0);
+  }, [payslipStatuses]);
+
+  // Dynamic Payroll Alerts
+  const payrollAlerts = useMemo(() => {
+    const alerts: AlertItem[] = [];
+
+    const payrunsWithBlocking = payruns.filter(p => p.openBlockingWarningsCount > 0);
+    payrunsWithBlocking.forEach(p => {
+      alerts.push({
+        id: `pr-block-${p.id}`,
+        text: `${p.openBlockingWarningsCount} blocking warnings in ${p.payrunNumber}`,
+        link: `/payroll/payruns/${p.id}`,
+        severity: 'error',
+      });
+    });
+
+    const payslipsWithWarnings = payslips.filter(p => p.hasWarnings);
+    if (payslipsWithWarnings.length > 0) {
+      alerts.push({
+        id: 'ps-warnings',
+        text: `${payslipsWithWarnings.length} payslips have active warnings`,
+        link: '/payroll/payslips',
+        severity: 'warning',
+      });
+    }
+
+    const draftPayruns = payruns.filter(p => p.status === 'DRAFT');
+    if (draftPayruns.length > 0) {
+      alerts.push({
+        id: 'pr-drafts',
+        text: `${draftPayruns.length} draft payrun${draftPayruns.length > 1 ? 's' : ''} awaiting computation`,
+        link: '/payroll/payruns',
+        severity: 'warning',
+      });
+    }
+
+    const computedPayruns = payruns.filter(p => p.status === 'COMPUTED');
+    if (computedPayruns.length > 0) {
+      alerts.push({
+        id: 'pr-computed',
+        text: `${computedPayruns.length} computed payrun${computedPayruns.length > 1 ? 's' : ''} ready for validation`,
+        link: '/payroll/payruns',
+        severity: 'warning',
+      });
+    }
+
+    if (alerts.length === 0 && (payruns.length > 0 || payslips.length > 0)) {
+      return [
+        {
+          id: 'all-clear',
+          text: 'All payroll records and payruns are compliant',
+          link: '/payroll/payruns',
+          severity: 'success' as const,
+        },
+      ];
+    }
+
+    return alerts.length > 0 ? alerts.slice(0, 5) : PAYROLL_ALERTS;
+  }, [payruns, payslips]);
 
   const timeOffRows: (string | React.ReactNode)[][] = TIME_OFF_TABLE.map(r => [
     r.type,
@@ -654,9 +949,29 @@ export default function Dashboard() {
       : r.balance,
   ]);
 
-  const deptRows: (string | React.ReactNode)[][] = DEPT_TABLE.map(r => [
-    r.dept, String(r.headcount), r.salary,
-  ]);
+  // Dynamic Department Table Rows
+  const deptRows: (string | React.ReactNode)[][] = useMemo(() => {
+    if (departments.length === 0) {
+      return DEPT_TABLE.map(r => [r.dept, String(r.headcount), r.salary]);
+    }
+
+    return departments.map(d => {
+      const count = employees.filter(e => e.department?.id === d.id || e.department?.name === d.name).length;
+      const deptPayslips = filteredPayslips.filter(p => p.departmentName === d.name);
+      const totalSalary = deptPayslips.reduce((acc, p) => acc + Number(p.netAmount || p.grossAmount || 0), 0);
+      const salaryStr = totalSalary >= 100000
+        ? `₹${(totalSalary / 100000).toFixed(1)}L`
+        : totalSalary > 0
+          ? `₹${Math.round(totalSalary).toLocaleString('en-IN')}`
+          : '₹0';
+
+      return [
+        d.name,
+        String(count),
+        salaryStr,
+      ];
+    });
+  }, [departments, employees, filteredPayslips]);
 
   return (
     <AppLayout>
@@ -678,9 +993,9 @@ export default function Dashboard() {
           background: T.bg, border: `1px solid ${T.border}`, borderRadius: 16,
           padding: '16px 20px',
         }}>
-          <FilterSelect label="Period" value={filters.period} options={PERIODS}
+          <FilterSelect label="Period" value={filters.period} options={availablePeriods}
             onChange={v => handleFilterChange('period', v)} />
-          <FilterSelect label="Department" value={filters.department} options={DEPARTMENTS}
+          <FilterSelect label="Department" value={filters.department} options={availableDepartments}
             onChange={v => handleFilterChange('department', v)} />
           <FilterSelect label="Employee Type" value={filters.employeeType} options={EMP_TYPES}
             onChange={v => handleFilterChange('employeeType', v)} />
@@ -696,7 +1011,7 @@ export default function Dashboard() {
 
           {/* ── KPI Card Row ─────────────────────────────── */}
           <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
-            {KPI_CARDS.map((def, i) => (
+            {kpiCards.map((def, i) => (
               <KpiCard key={def.label} def={def} staggerIdx={i} trigger={animTrigger} />
             ))}
           </div>
@@ -706,7 +1021,7 @@ export default function Dashboard() {
 
             {/* Salary by Dept */}
             <AnimatedBarChart
-              data={SALARY_BY_DEPT}
+              data={salaryByDept}
               title="Salary Cost by Department"
               subtitle="Source: Payslips + Employee Department"
               formatter={v => `₹${v}k`}
@@ -715,7 +1030,7 @@ export default function Dashboard() {
 
             {/* Monthly Trend */}
             <AnimatedLineChart
-              data={SALARY_TREND}
+              data={salaryTrend}
               title="Monthly Net Salary Trend"
               subtitle="Source: historical Payslips / Payruns"
               formatter={v => `${v}L`}
@@ -725,12 +1040,12 @@ export default function Dashboard() {
             {/* Status + Alerts */}
             <Panel>
               <PanelHeader title="Payslip Status & Payroll Alerts" source="Source: Payrun + Payslip validation" />
-              <PayslipStatusBar animate={animTrigger} />
+              <PayslipStatusBar statuses={payslipStatuses} total={payslipTotal} animate={animTrigger} />
               <div style={{ marginTop: 16 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: T.navy, marginBottom: 2 }}>
                   Current Alerts
                 </div>
-                <AlertList animate={animTrigger} />
+                <AlertList alerts={payrollAlerts} animate={animTrigger} />
               </div>
             </Panel>
           </div>

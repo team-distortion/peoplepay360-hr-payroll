@@ -1,384 +1,545 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Check, Search, ArrowRight } from 'lucide-react';
-import type { SalaryStructure, Payrun, Payslip, SalaryRule, PayslipLine } from './mockData';
-import { MOCK_EMPLOYEES, formatCurrency } from './mockData';
+import {
+  ArrowLeft,
+  Check,
+  Search,
+  ArrowRight,
+  Loader2,
+  AlertTriangle,
+  Users,
+  ShieldAlert,
+  Calendar,
+} from 'lucide-react';
+import { useSalaryStructures } from '../../features/salary-config/salary-config.queries';
+import {
+  useEvaluateEligibilityMutation,
+  useCreatePayrunMutation,
+} from '../../features/payroll/payroll.queries';
+import type {
+  EligibleEmployeeDto,
+  IneligibleEmployeeDto,
+  IneligibilityReason,
+} from '@peoplepay360/shared';
+import { formatCurrency } from './PayrunList';
 
-interface Props {
-  structures: SalaryStructure[];
-  rules: SalaryRule[];
-  onCreatePayrun: (payrun: Payrun, payslips: Payslip[]) => void;
-}
+const INELIGIBILITY_EXPLANATIONS: Record<IneligibilityReason, string> = {
+  EMPLOYEE_INACTIVE: 'Employee record is currently inactive.',
+  NO_APPLICABLE_CONTRACT: 'No contract found covering this pay period.',
+  MULTIPLE_APPLICABLE_CONTRACTS: 'Multiple active contracts overlap this period (ambiguous).',
+  SALARY_STRUCTURE_MISMATCH: 'Contract is assigned to a different salary structure.',
+  WORKING_SCHEDULE_MISSING: 'Contract has no working schedule assigned.',
+  SALARY_STRUCTURE_INACTIVE: 'Selected salary structure is inactive.',
+  SALARY_STRUCTURE_INVALID: 'Salary structure has invalid formula configuration.',
+  DUPLICATE_PAYSLIP: 'Employee already has a payslip covering this period.',
+};
 
-export default function NewPayrunWizard({ structures, rules, onCreatePayrun }: Props) {
+export default function NewPayrunWizard() {
   const navigate = useNavigate();
 
-  // Wizard Step (1 or 2)
+  // Wizard Step
   const [step, setStep] = useState<1 | 2>(1);
 
   // Step 1: Configuration
-  const [selectedStructureId, setSelectedStructureId] = useState(structures[0]?.id ?? '');
-  const [periodLabel, setPeriodLabel] = useState('March 2026');
-  const [periodStart, setPeriodStart] = useState('2026-03-01');
-  const [periodEnd, setPeriodEnd] = useState('2026-03-31');
+  const { data: structuresData, isLoading: structuresLoading } = useSalaryStructures({
+    status: 'ACTIVE',
+  });
+  const structures = structuresData?.items ?? [];
 
-  // Step 2: Employee Selection
-  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>(
-    MOCK_EMPLOYEES.map(e => e.id)
-  );
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
+
+  const [selectedStructureId, setSelectedStructureId] = useState('');
+  const [periodStart, setPeriodStart] = useState(`${year}-${month}-01`);
+  const [periodEnd, setPeriodEnd] = useState(`${year}-${month}-${String(lastDay).padStart(2, '0')}`);
+  const [payrunName, setPayrunName] = useState('');
+
+  // Set default structure when loaded
+  useEffect(() => {
+    if (!selectedStructureId && structures.length > 0) {
+      setSelectedStructureId(structures[0].id);
+    }
+  }, [structures, selectedStructureId]);
+
+  // Set default payrun name
+  useEffect(() => {
+    const selectedStructure = structures.find((s) => s.id === selectedStructureId);
+    const structName = selectedStructure ? selectedStructure.name : 'Payrun';
+    setPayrunName(`${structName} - ${periodStart} to ${periodEnd}`);
+  }, [selectedStructureId, periodStart, periodEnd, structures]);
+
+  // Step 2 State
+  const [eligibleEmployees, setEligibleEmployees] = useState<EligibleEmployeeDto[]>([]);
+  const [ineligibleEmployees, setIneligibleEmployees] = useState<IneligibleEmployeeDto[]>([]);
+  const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<string[]>([]);
   const [employeeSearch, setEmployeeSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<'eligible' | 'ineligible'>('eligible');
+  const [apiError, setApiError] = useState<string | null>(null);
 
-  const selectedStructure = useMemo(
-    () => structures.find(s => s.id === selectedStructureId),
-    [structures, selectedStructureId]
-  );
+  const evaluateMutation = useEvaluateEligibilityMutation();
+  const createMutation = useCreatePayrunMutation();
 
-  const filteredEmployees = useMemo(() => {
-    if (!employeeSearch) return MOCK_EMPLOYEES;
+  // Step 1 -> Step 2 evaluation
+  const handleContinueToStep2 = async () => {
+    if (!selectedStructureId || !periodStart || !periodEnd) return;
+    setApiError(null);
+
+    try {
+      const evaluation = await evaluateMutation.mutateAsync({
+        salaryStructureId: selectedStructureId,
+        periodStart,
+        periodEnd,
+        page: 1,
+        pageSize: 500,
+      });
+
+      const eligible = evaluation.items.filter((i): i is EligibleEmployeeDto => i.eligible);
+      const ineligible = evaluation.items.filter((i): i is IneligibleEmployeeDto => !i.eligible);
+      setEligibleEmployees(eligible);
+      setIneligibleEmployees(ineligible);
+      // Default to selecting all eligible employees
+      setSelectedEmployeeIds(eligible.map((e) => e.employeeId));
+      setStep(2);
+    } catch (err) {
+      setApiError((err as Error).message || 'Failed to evaluate employee eligibility');
+    }
+  };
+
+  // Filtered employees for Step 2
+  const filteredEligible = useMemo(() => {
+    if (!employeeSearch.trim()) return eligibleEmployees;
     const q = employeeSearch.toLowerCase();
-    return MOCK_EMPLOYEES.filter(
-      e => e.name.toLowerCase().includes(q) || e.workingHours.toLowerCase().includes(q)
+    return eligibleEmployees.filter(
+      (e) =>
+        e.employeeName.toLowerCase().includes(q) ||
+        e.employeeNumber.toLowerCase().includes(q) ||
+        (e.departmentName && e.departmentName.toLowerCase().includes(q))
     );
-  }, [employeeSearch]);
+  }, [eligibleEmployees, employeeSearch]);
 
-  const allSelected = filteredEmployees.length > 0 && filteredEmployees.every(e => selectedEmployeeIds.includes(e.id));
+  const filteredIneligible = useMemo(() => {
+    if (!employeeSearch.trim()) return ineligibleEmployees;
+    const q = employeeSearch.toLowerCase();
+    return ineligibleEmployees.filter(
+      (e) =>
+        e.employeeName.toLowerCase().includes(q) ||
+        e.employeeNumber.toLowerCase().includes(q) ||
+        (e.departmentName && e.departmentName.toLowerCase().includes(q))
+    );
+  }, [ineligibleEmployees, employeeSearch]);
 
-  const toggleSelectAll = () => {
-    if (allSelected) {
-      // Unselect all currently filtered
-      const filteredIds = new Set(filteredEmployees.map(e => e.id));
-      setSelectedEmployeeIds(prev => prev.filter(id => !filteredIds.has(id)));
+  const allEligibleSelected =
+    filteredEligible.length > 0 &&
+    filteredEligible.every((e) => selectedEmployeeIds.includes(e.employeeId));
+
+  const toggleSelectAllEligible = () => {
+    if (allEligibleSelected) {
+      const filteredIds = new Set(filteredEligible.map((e) => e.employeeId));
+      setSelectedEmployeeIds((prev) => prev.filter((id) => !filteredIds.has(id)));
     } else {
-      // Select all currently filtered
-      const newIds = new Set([...selectedEmployeeIds, ...filteredEmployees.map(e => e.id)]);
+      const newIds = new Set([
+        ...selectedEmployeeIds,
+        ...filteredEligible.map((e) => e.employeeId),
+      ]);
       setSelectedEmployeeIds(Array.from(newIds));
     }
   };
 
   const toggleEmployee = (id: string) => {
-    setSelectedEmployeeIds(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    setSelectedEmployeeIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
 
-  // Helper to generate payslips for the selected employees and structure
-  const handleFinalize = () => {
-    if (!selectedStructure || selectedEmployeeIds.length === 0) return;
+  // Finalize Creation
+  const handleCreatePayrun = async () => {
+    if (!selectedStructureId || selectedEmployeeIds.length === 0) return;
+    setApiError(null);
 
-    const newPayrunId = `pr-${Date.now()}`;
-
-    // Generate payslip lines based on the structure's rules
-    const structureRules = selectedStructure.rules
-      .map(sr => rules.find(r => r.id === sr.ruleId))
-      .filter(Boolean) as SalaryRule[];
-
-    const generatedPayslips: Payslip[] = selectedEmployeeIds.map((empId, index) => {
-      const emp = MOCK_EMPLOYEES.find(e => e.id === empId)!;
-      const baseSalary = emp.wage * 100; // Realistic base scale
-
-      const lines: PayslipLine[] = structureRules.map(rule => {
-        let amount = 0;
-        if (rule.computation === 'Fixed Amount') {
-          amount = rule.amount ?? 0;
-        } else if (rule.computation === 'Percentage of Wage') {
-          amount = ((rule.percentage ?? 0) / 100) * baseSalary;
-        } else if (rule.code === 'GROSS') {
-          amount = baseSalary * 1.35;
-        } else if (rule.code === 'NET' || rule.code === 'ALT') {
-          amount = baseSalary * 1.15;
-        }
-
-        if (rule.category === 'Deduction') {
-          amount = -Math.abs(amount);
-        }
-
-        return {
-          ruleId: rule.id,
-          ruleName: rule.name,
-          ruleCode: rule.code,
-          category: rule.category,
-          amount,
-        };
-      });
-
-      const basic = baseSalary;
-      const gross = Math.round(baseSalary * 1.35);
-      const net = Math.round(baseSalary * 1.15);
-
-      // Add a simulated warning for demo realism on some employees
-      const warnings: string[] = [];
-      if (index === 1) warnings.push('Missing tax exemption form');
-
-      return {
-        id: `slip-${Date.now()}-${empId}`,
-        payrunId: newPayrunId,
-        employeeId: emp.id,
-        employeeName: emp.name,
-        structureId: selectedStructure.id,
-        structureName: selectedStructure.name,
+    try {
+      const res = await createMutation.mutateAsync({
+        salaryStructureId: selectedStructureId,
         periodStart,
         periodEnd,
-        periodLabel,
-        status: 'Draft',
-        warnings,
-        workedDays: 22,
-        lines,
-        basic,
-        gross,
-        net,
-      };
-    });
+        employeeIds: selectedEmployeeIds,
+      });
 
-    const newPayrun: Payrun = {
-      id: newPayrunId,
-      periodLabel,
-      periodStart,
-      periodEnd,
-      structureId: selectedStructure.id,
-      structureName: selectedStructure.name,
-      status: 'Draft',
-      employeeCount: selectedEmployeeIds.length,
-      warningCount: generatedPayslips.reduce((acc, p) => acc + p.warnings.length, 0),
-    };
-
-    onCreatePayrun(newPayrun, generatedPayslips);
-    navigate(`/payroll/payruns/${newPayrunId}`);
+      navigate(`/payroll/payruns/${res.id}`);
+    } catch (err) {
+      setApiError((err as Error).message || 'Failed to create payrun');
+    }
   };
 
   return (
     <div className="flex flex-col flex-1 bg-surface/30 min-h-screen">
       {/* Header */}
-      <div className="flex items-center justify-between px-8 py-4 bg-white border-b border-border">
+      <div className="flex items-center justify-between px-8 py-5 bg-white border-b border-border">
         <div className="flex items-center gap-4">
           <button
+            type="button"
             onClick={() => (step === 2 ? setStep(1) : navigate('/payroll/payruns'))}
-            className="p-2 hover:bg-surface rounded-full text-brandAccent transition-colors group"
+            className="p-2 hover:bg-surface rounded-full text-slate hover:text-navy transition-colors"
           >
-            <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+            <ArrowLeft size={18} />
           </button>
           <div>
-            <h2 className="text-xl font-display font-semibold text-navy">New Payrun</h2>
-            <p className="text-xs text-mutedText mt-0.5">
-              Step {step} of 2 — {step === 1 ? 'Configure Payrun Parameters' : 'Select Employees'}
+            <h1 className="text-xl font-display font-semibold text-navy">New Payrun Wizard</h1>
+            <p className="text-xs text-mutedText">
+              {step === 1
+                ? 'Step 1: Define structure and pay period'
+                : 'Step 2: Review eligible candidates and confirm batch creation'}
             </p>
           </div>
         </div>
 
-        {/* Step Indicators */}
+        {/* Progress indicators */}
         <div className="flex items-center gap-2">
           <div
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-              step === 1 ? 'bg-accent text-white' : 'bg-surface text-navy'
+            className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold ${
+              step === 1 ? 'bg-accent text-white' : 'bg-emerald-600 text-white'
             }`}
           >
-            <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px]">
-              1
-            </span>
-            Period & Structure
+            {step === 2 ? <Check size={14} /> : '1'}
           </div>
-          <span className="text-slate/40">›</span>
+          <div className={`w-8 h-0.5 ${step === 2 ? 'bg-emerald-600' : 'bg-border'}`} />
           <div
-            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
-              step === 2 ? 'bg-accent text-white' : 'bg-surface text-slate'
+            className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-semibold ${
+              step === 2 ? 'bg-accent text-white' : 'bg-surface text-slate border border-border'
             }`}
           >
-            <span className="w-4 h-4 rounded-full bg-black/10 flex items-center justify-center text-[10px]">
-              2
-            </span>
-            Employees
+            2
           </div>
         </div>
       </div>
 
-      {/* Body */}
-      <div className="max-w-4xl w-full mx-auto px-8 py-8">
-        {step === 1 && (
-          <div className="bg-white rounded-lg border border-border p-6 shadow-sm space-y-6">
-            <h3 className="text-base font-semibold text-navy">Payrun Configuration</h3>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate mb-1">
-                  Salary Structure <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={selectedStructureId}
-                  onChange={e => setSelectedStructureId(e.target.value)}
-                  className="w-full px-3 py-2 bg-surface/40 border border-border rounded-md text-sm text-navy focus:outline-none focus:ring-1 focus:ring-accent"
-                >
-                  {structures.map(s => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.rules.length} rules, {s.employeeCount} active)
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-mutedText mt-1">
-                  The salary rules within this structure will be evaluated to generate payslips.
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate mb-1">
-                  Period Label <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={periodLabel}
-                  onChange={e => setPeriodLabel(e.target.value)}
-                  placeholder="e.g. March 2026"
-                  className="w-full px-3 py-2 bg-surface/40 border border-border rounded-md text-sm text-navy focus:outline-none focus:ring-1 focus:ring-accent"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-slate mb-1">Start Date</label>
-                  <input
-                    type="date"
-                    value={periodStart}
-                    onChange={e => setPeriodStart(e.target.value)}
-                    className="w-full px-3 py-2 bg-surface/40 border border-border rounded-md text-sm text-navy focus:outline-none focus:ring-1 focus:ring-accent"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-slate mb-1">End Date</label>
-                  <input
-                    type="date"
-                    value={periodEnd}
-                    onChange={e => setPeriodEnd(e.target.value)}
-                    className="w-full px-3 py-2 bg-surface/40 border border-border rounded-md text-sm text-navy focus:outline-none focus:ring-1 focus:ring-accent"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between pt-4 border-t border-border">
-              <button
-                type="button"
-                onClick={() => navigate('/payroll/payruns')}
-                className="px-4 py-2 text-xs font-medium text-slate hover:text-navy hover:bg-surface border border-border rounded-md transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => setStep(2)}
-                disabled={!selectedStructureId || !periodLabel}
-                className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-accent hover:bg-accent/90 rounded-md shadow-sm transition-all disabled:opacity-50"
-              >
-                Continue to Employees
-                <ArrowRight size={14} />
-              </button>
-            </div>
+      {/* Main Body */}
+      <div className="p-8 max-w-5xl mx-auto w-full flex-1">
+        {apiError && (
+          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 rounded-lg flex items-center gap-3 text-sm">
+            <AlertTriangle className="w-5 h-5 shrink-0" />
+            <span>{apiError}</span>
           </div>
         )}
 
-        {step === 2 && (
-          <div className="bg-white rounded-lg border border-border shadow-sm overflow-hidden space-y-4 p-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {step === 1 ? (
+          /* STEP 1: PARAMETERS */
+          <div className="bg-white rounded-xl border border-border p-8 shadow-sm">
+            <h2 className="text-base font-semibold text-navy mb-6 flex items-center gap-2">
+              <Calendar className="w-5 h-5 text-accent" />
+              Payrun Period & Salary Structure
+            </h2>
+
+            <div className="space-y-6">
               <div>
-                <h3 className="text-base font-semibold text-navy">Select Employees</h3>
+                <label className="block text-xs font-medium text-slate uppercase tracking-wider mb-2">
+                  Salary Structure *
+                </label>
+                {structuresLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-slate py-2">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Loading active structures...
+                  </div>
+                ) : structures.length === 0 ? (
+                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+                    No active salary structures found. Please create and activate a salary structure
+                    before starting a payrun.
+                  </div>
+                ) : (
+                  <select
+                    value={selectedStructureId}
+                    onChange={(e) => setSelectedStructureId(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-surface/40 border border-border rounded-lg text-sm text-navy focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
+                  >
+                    {structures.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-medium text-slate uppercase tracking-wider mb-2">
+                    Period Start *
+                  </label>
+                  <input
+                    type="date"
+                    value={periodStart}
+                    onChange={(e) => setPeriodStart(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-surface/40 border border-border rounded-lg text-sm text-navy focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-slate uppercase tracking-wider mb-2">
+                    Period End *
+                  </label>
+                  <input
+                    type="date"
+                    value={periodEnd}
+                    onChange={(e) => setPeriodEnd(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-surface/40 border border-border rounded-lg text-sm text-navy focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-slate uppercase tracking-wider mb-2">
+                  Payrun Name (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={payrunName}
+                  onChange={(e) => setPayrunName(e.target.value)}
+                  placeholder="e.g. Regular Staff - March 2026"
+                  className="w-full px-3.5 py-2.5 bg-surface/40 border border-border rounded-lg text-sm text-navy focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent"
+                />
+              </div>
+
+              <div className="pt-6 border-t border-border flex justify-end">
+                <button
+                  type="button"
+                  disabled={
+                    !selectedStructureId ||
+                    !periodStart ||
+                    !periodEnd ||
+                    evaluateMutation.isPending
+                  }
+                  onClick={handleContinueToStep2}
+                  className="inline-flex items-center gap-2 px-6 py-2.5 bg-accent hover:bg-accent/90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-sm transition-all"
+                >
+                  {evaluateMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Evaluating Candidates...
+                    </>
+                  ) : (
+                    <>
+                      Continue to Employee Selection
+                      <ArrowRight size={15} />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* STEP 2: CANDIDATE SELECTION & INELIGIBILITY REVIEW */
+          <div className="bg-white rounded-xl border border-border overflow-hidden shadow-sm">
+            {/* Step 2 summary bar */}
+            <div className="p-6 bg-surface/40 border-b border-border flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h2 className="text-base font-semibold text-navy">{payrunName}</h2>
                 <p className="text-xs text-mutedText mt-0.5">
-                  Choose which employees to include in the {periodLabel} payrun.
+                  Period: <span className="font-mono text-navy">{periodStart}</span> &rarr;{' '}
+                  <span className="font-mono text-navy">{periodEnd}</span>
                 </p>
               </div>
 
-              <div className="relative w-full md:w-64">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate" />
-                <input
-                  type="text"
-                  placeholder="Search employees..."
-                  value={employeeSearch}
-                  onChange={e => setEmployeeSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-1.5 bg-surface/60 border border-border rounded-md text-xs text-navy placeholder:text-mutedText focus:outline-none focus:ring-1 focus:ring-accent"
-                />
+              <div className="flex items-center gap-3">
+                <div className="flex bg-white rounded-lg p-1 border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('eligible')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-2 ${
+                      activeTab === 'eligible'
+                        ? 'bg-accent text-white shadow-sm'
+                        : 'text-slate hover:text-navy'
+                    }`}
+                  >
+                    <Users size={14} />
+                    Eligible ({eligibleEmployees.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('ineligible')}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all flex items-center gap-2 ${
+                      activeTab === 'ineligible'
+                        ? 'bg-rose-600 text-white shadow-sm'
+                        : 'text-slate hover:text-navy'
+                    }`}
+                  >
+                    <ShieldAlert size={14} />
+                    Ineligible ({ineligibleEmployees.length})
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Selection Status Summary */}
-            <div className="flex items-center justify-between py-2 px-3 bg-surface/60 rounded-md text-xs text-slate border border-border/70">
-              <span className="font-medium">
-                <strong className="text-navy">{selectedEmployeeIds.length}</strong> of{' '}
-                {MOCK_EMPLOYEES.length} employees selected
-              </span>
-              <button
-                type="button"
-                onClick={toggleSelectAll}
-                className="text-xs font-medium text-accent hover:underline"
-              >
-                {allSelected ? 'Deselect All' : 'Select All Filtered'}
-              </button>
+            {/* Filter search */}
+            <div className="p-4 border-b border-border bg-white flex items-center justify-between gap-4">
+              <div className="relative max-w-sm w-full">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate" />
+                <input
+                  type="text"
+                  placeholder="Search candidates by name, ID, department..."
+                  value={employeeSearch}
+                  onChange={(e) => setEmployeeSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-1.5 bg-surface/60 border border-border rounded-md text-xs text-navy placeholder:text-mutedText focus:outline-none focus:ring-1 focus:ring-accent"
+                />
+              </div>
+
+              {activeTab === 'eligible' && (
+                <div className="text-xs text-slate">
+                  <span className="font-semibold text-navy">{selectedEmployeeIds.length}</span> of{' '}
+                  {eligibleEmployees.length} selected
+                </div>
+              )}
             </div>
 
-            {/* Employees Table */}
-            <div className="border border-border rounded-md overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-surface/70 border-b border-border text-[11px] font-semibold text-slate uppercase tracking-wider">
-                    <th className="py-2.5 px-4 w-10">
-                      <input
-                        type="checkbox"
-                        checked={allSelected}
-                        onChange={toggleSelectAll}
-                        className="rounded border-border text-accent focus:ring-accent"
-                      />
-                    </th>
-                    <th className="py-2.5 px-4">Employee</th>
-                    <th className="py-2.5 px-4">Schedule / Hours</th>
-                    <th className="py-2.5 px-4">Start Date</th>
-                    <th className="py-2.5 px-4 text-right">Standard Wage</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border text-xs">
-                  {filteredEmployees.map(emp => {
-                    const isChecked = selectedEmployeeIds.includes(emp.id);
-                    return (
-                      <tr
-                        key={emp.id}
-                        onClick={() => toggleEmployee(emp.id)}
-                        className={`cursor-pointer transition-colors ${
-                          isChecked ? 'bg-accent/5 hover:bg-accent/10' : 'hover:bg-surface/50'
-                        }`}
-                      >
-                        <td className="py-2.5 px-4" onClick={e => e.stopPropagation()}>
+            {/* Candidate Tables */}
+            <div className="max-h-[420px] overflow-y-auto">
+              {activeTab === 'eligible' ? (
+                eligibleEmployees.length === 0 ? (
+                  <div className="p-12 text-center text-slate text-xs">
+                    No eligible employees found for this structure and period.
+                  </div>
+                ) : (
+                  <table className="w-full text-left text-xs text-slate">
+                    <thead className="bg-surface/50 border-b border-border uppercase font-medium text-slate sticky top-0">
+                      <tr>
+                        <th className="px-6 py-3 w-10">
                           <input
                             type="checkbox"
-                            checked={isChecked}
-                            onChange={() => toggleEmployee(emp.id)}
+                            checked={allEligibleSelected}
+                            onChange={toggleSelectAllEligible}
                             className="rounded border-border text-accent focus:ring-accent"
                           />
-                        </td>
-                        <td className="py-2.5 px-4 font-medium text-navy">{emp.name}</td>
-                        <td className="py-2.5 px-4 text-slate">{emp.workingHours}</td>
-                        <td className="py-2.5 px-4 text-slate">{emp.startDate}</td>
-                        <td className="py-2.5 px-4 text-right font-medium text-navy">
-                          {formatCurrency(emp.wage)} / mo
-                        </td>
+                        </th>
+                        <th className="px-6 py-3">Employee</th>
+                        <th className="px-6 py-3">Department & Position</th>
+                        <th className="px-6 py-3">Contract</th>
+                        <th className="px-6 py-3 text-right">Monthly Wage</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {filteredEligible.map((emp) => {
+                        const isChecked = selectedEmployeeIds.includes(emp.employeeId);
+                        return (
+                          <tr
+                            key={emp.employeeId}
+                            onClick={() => toggleEmployee(emp.employeeId)}
+                            className={`hover:bg-surface/30 cursor-pointer transition-colors ${
+                              isChecked ? 'bg-blue-50/20' : ''
+                            }`}
+                          >
+                            <td className="px-6 py-3.5" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => toggleEmployee(emp.employeeId)}
+                                className="rounded border-border text-accent focus:ring-accent"
+                              />
+                            </td>
+                            <td className="px-6 py-3.5">
+                              <div className="font-semibold text-navy">{emp.employeeName}</div>
+                              <div className="font-mono text-slate text-[11px]">
+                                {emp.employeeNumber}
+                              </div>
+                            </td>
+                            <td className="px-6 py-3.5">
+                              <div className="text-navy">{emp.departmentName || '—'}</div>
+                              <div className="text-slate text-[11px]">{emp.employeeType}</div>
+                            </td>
+                            <td className="px-6 py-3.5">
+                              <div className="font-mono text-xs text-navy">
+                                {emp.contractNumber}
+                              </div>
+                              <div className="text-slate text-[11px]">
+                                {emp.effectiveScheduleName || 'Standard'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-3.5 text-right font-mono font-medium text-navy">
+                              {formatCurrency(emp.monthlyWage)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )
+              ) : (
+                /* INELIGIBLE TABLE */
+                ineligibleEmployees.length === 0 ? (
+                  <div className="p-12 text-center text-slate text-xs">
+                    All employees are eligible. No exclusions detected!
+                  </div>
+                ) : (
+                  <table className="w-full text-left text-xs text-slate">
+                    <thead className="bg-surface/50 border-b border-border uppercase font-medium text-slate sticky top-0">
+                      <tr>
+                        <th className="px-6 py-3">Employee</th>
+                        <th className="px-6 py-3">Department</th>
+                        <th className="px-6 py-3">Reason Code</th>
+                        <th className="px-6 py-3">Explanation</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {filteredIneligible.map((inelig) => (
+                        <tr key={inelig.employeeId} className="bg-rose-50/10">
+                          <td className="px-6 py-3.5">
+                            <div className="font-semibold text-navy">{inelig.employeeName}</div>
+                            <div className="font-mono text-slate text-[11px]">
+                              {inelig.employeeNumber}
+                            </div>
+                          </td>
+                          <td className="px-6 py-3.5 text-navy">
+                            {inelig.departmentName || '—'}
+                          </td>
+                          <td className="px-6 py-3.5">
+                            <div className="flex flex-wrap gap-1">
+                              {inelig.ineligibilityReasons.map((reason) => (
+                                <span
+                                  key={reason}
+                                  className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-rose-100 text-rose-800 border border-rose-200"
+                                >
+                                  {reason}
+                                </span>
+                              ))}
+                            </div>
+                          </td>
+                          <td className="px-6 py-3.5 text-xs text-rose-700">
+                            {inelig.ineligibilityReasons
+                              .map((r) => INELIGIBILITY_EXPLANATIONS[r] || r)
+                              .join('; ')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )
+              )}
             </div>
 
-            {/* Bottom Actions */}
-            <div className="flex items-center justify-between pt-4 border-t border-border">
+            {/* Footer actions */}
+            <div className="p-6 bg-surface/20 border-t border-border flex items-center justify-between">
               <button
                 type="button"
                 onClick={() => setStep(1)}
-                className="px-4 py-2 text-xs font-medium text-slate hover:text-navy hover:bg-surface border border-border rounded-md transition-colors"
+                className="px-4 py-2 text-xs font-semibold text-slate hover:text-navy border border-border rounded-lg bg-white shadow-sm transition-all"
               >
                 Back to Parameters
               </button>
 
               <button
                 type="button"
-                onClick={handleFinalize}
-                disabled={selectedEmployeeIds.length === 0}
-                className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-semibold text-white bg-accent hover:bg-accent/90 rounded-md shadow-sm transition-all disabled:opacity-50"
+                disabled={selectedEmployeeIds.length === 0 || createMutation.isPending}
+                onClick={handleCreatePayrun}
+                className="inline-flex items-center gap-2 px-6 py-2.5 bg-accent hover:bg-accent/90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg shadow-sm transition-all"
               >
-                <Check size={14} />
-                Generate Payrun ({selectedEmployeeIds.length})
+                {createMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Generating Payrun...
+                  </>
+                ) : (
+                  <>
+                    Generate Payrun ({selectedEmployeeIds.length} Employees)
+                    <ArrowRight size={15} />
+                  </>
+                )}
               </button>
             </div>
           </div>

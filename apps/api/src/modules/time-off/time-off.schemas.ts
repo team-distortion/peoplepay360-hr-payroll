@@ -21,7 +21,11 @@ export {
   DecisionInputSchema,
 };
 
-export function parseOrThrow<T>(schema: z.ZodType<T>, data: unknown, code = 'INVALID_TIME_OFF_INPUT'): T {
+export function parseOrThrow<TSchema extends z.ZodTypeAny>(
+  schema: TSchema,
+  data: unknown,
+  code = 'INVALID_TIME_OFF_INPUT'
+): z.output<TSchema> {
   const result = schema.safeParse(data);
   if (!result.success) {
     throw new AppError(400, code, result.error.errors[0]?.message || 'Validation failed', {

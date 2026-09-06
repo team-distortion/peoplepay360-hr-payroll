@@ -9,6 +9,7 @@ import { attendanceRouter } from '../modules/attendance/attendance.routes.js';
 import { timeOffRouter } from '../modules/time-off/time-off.routes.js';
 import { salaryStructuresRouter } from '../modules/salary-config/salary-structures.routes.js';
 import { salaryRulesRouter } from '../modules/salary-config/salary-rules.routes.js';
+import { payrollRouter as payrollProcessingRouter } from '../modules/payroll/payroll.routes.js';
 
 export const apiRouter = Router();
 
@@ -24,4 +25,5 @@ apiRouter.use('/time-off', timeOffRouter);
 const payrollRouter = Router();
 payrollRouter.use('/structures', salaryStructuresRouter);
 payrollRouter.use('/rules', salaryRulesRouter);
+payrollRouter.use('/', payrollProcessingRouter);
 apiRouter.use('/payroll', payrollRouter);

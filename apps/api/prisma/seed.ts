@@ -1,5 +1,6 @@
 import {
   EmployeeType,
+  Prisma,
   PrismaClient,
   RecordStatus,
   Role,
@@ -13,7 +14,6 @@ import {
   TimeOffApprovalMode,
   TimeOffPayrollTreatment,
   TimeOffDecisionStatus,
-  Prisma,
 } from '@prisma/client';
 import argon2 from 'argon2';
 
@@ -567,6 +567,18 @@ async function main() {
       endDate: null,
       monthlyWage: new Prisma.Decimal('150000.00'),
       notes: 'Executive contract with flexible schedule override',
+    },
+    {
+      contractNumber: 'CON/2026/000003',
+      employeeId: aarav.id,
+      departmentId: financeDepartment.id,
+      workingScheduleId: null,
+      salaryStructureId: regularStructure.id,
+      jobPosition: 'Finance Specialist',
+      startDate: new Date('2026-01-01T00:00:00.000Z'),
+      endDate: null,
+      monthlyWage: new Prisma.Decimal('85000.00'),
+      notes: 'Running contract for Aarav Mehta',
     },
   ];
 
@@ -1251,6 +1263,66 @@ async function main() {
       decidedByUserId: adminUser!.id,
       decidedAt: new Date('2026-09-25T11:00:00.000Z'),
       decisionNote: 'Quarter-end payroll closing priority',
+    },
+  });
+
+  console.log('Seeding Payruns...');
+  const priyaContract = await prisma.contract.findUniqueOrThrow({
+    where: { contractNumber: 'CON/2026/000001' },
+  });
+  const aaravContract = await prisma.contract.findUniqueOrThrow({
+    where: { contractNumber: 'CON/2026/000003' },
+  });
+
+  await prisma.payrun.upsert({
+    where: { payrunNumber: 'PAY/2026/000001' },
+    update: {},
+    create: {
+      payrunNumber: 'PAY/2026/000001',
+      name: `Payrun - ${regularStructure.name} - 2026-03-01 to 2026-03-31`,
+      salaryStructureId: regularStructure.id,
+      salaryStructureName: regularStructure.name,
+      periodStart: new Date('2026-03-01'),
+      periodEnd: new Date('2026-03-31'),
+      currency: 'INR',
+      status: 'DRAFT',
+      createdByUserId: adminUser!.id,
+      payslips: {
+        create: [
+          {
+            employeeId: aarav.id,
+            contractId: aaravContract.id,
+            salaryStructureId: regularStructure.id,
+            periodStart: new Date('2026-03-01'),
+            periodEnd: new Date('2026-03-31'),
+            status: 'DRAFT',
+            monthlyWage: aaravContract.monthlyWage,
+            employeeNumberSnapshot: aarav.employeeNumber,
+            employeeNameSnapshot: 'Aarav Mehta',
+            departmentNameSnapshot: 'Finance',
+            contractNumberSnapshot: aaravContract.contractNumber,
+            structureNameSnapshot: regularStructure.name,
+            scheduleIdSnapshot: standardSchedule.id,
+            scheduleNameSnapshot: standardSchedule.name,
+          },
+          {
+            employeeId: priya.id,
+            contractId: priyaContract.id,
+            salaryStructureId: regularStructure.id,
+            periodStart: new Date('2026-03-01'),
+            periodEnd: new Date('2026-03-31'),
+            status: 'DRAFT',
+            monthlyWage: priyaContract.monthlyWage,
+            employeeNumberSnapshot: priya.employeeNumber,
+            employeeNameSnapshot: 'Priya Sharma',
+            departmentNameSnapshot: 'Human Resources',
+            contractNumberSnapshot: priyaContract.contractNumber,
+            structureNameSnapshot: regularStructure.name,
+            scheduleIdSnapshot: standardSchedule.id,
+            scheduleNameSnapshot: standardSchedule.name,
+          },
+        ],
+      },
     },
   });
 

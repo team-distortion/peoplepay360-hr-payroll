@@ -43,6 +43,12 @@ model User {
   timeOffRequestsDecided   TimeOffRequest[]    @relation("TimeOffRequestDecider")
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
+
+  payrunsCreated       Payrun[]         @relation("PayrunCreator")
+  payrunsComputed      Payrun[]         @relation("PayrunComputer")
+  payrunsValidated     Payrun[]         @relation("PayrunValidator")
+  payrunsPaid          Payrun[]         @relation("PayrunPayer")
+  warningsAcknowledged PayrollWarning[] @relation("WarningAcknowledger")
 }
 
 model Department {
@@ -85,15 +91,16 @@ model Employee {
   createdAt             DateTime        @default(now()) @db.Timestamptz(3)
   updatedAt             DateTime        @updatedAt @db.Timestamptz(3)
 
-  department      Department?       @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  manager         Employee?         @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: Restrict)
-  directReports   Employee[]        @relation("EmployeeManager")
-  workingSchedule WorkingSchedule?  @relation(fields: [workingScheduleId], references: [id], onDelete: Restrict)
-  user            User?
-  contracts       Contract[]
-  attendances     Attendance[]
+  department         Department?         @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  manager            Employee?           @relation("EmployeeManager", fields: [managerId], references: [id], onDelete: Restrict)
+  directReports      Employee[]          @relation("EmployeeManager")
+  workingSchedule    WorkingSchedule?    @relation(fields: [workingScheduleId], references: [id], onDelete: Restrict)
+  user               User?
+  contracts          Contract[]
+  attendances        Attendance[]
   timeOffAllocations TimeOffAllocation[]
   timeOffRequests    TimeOffRequest[]
+  payslips           Payslip[]
 
   @@index([departmentId])
   @@index([managerId])
@@ -179,6 +186,8 @@ model SalaryStructure {
   status      RecordStatus @default(ACTIVE)
   rules       SalaryRule[]
   contracts   Contract[]
+  payruns     Payrun[]
+  payslips    Payslip[]
   createdAt   DateTime     @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime     @updatedAt @db.Timestamptz(3)
 
@@ -199,6 +208,7 @@ model SalaryRule {
   formula           String?
   status            RecordStatus       @default(ACTIVE)
   salaryStructure   SalaryStructure    @relation(fields: [salaryStructureId], references: [id], onDelete: Restrict)
+  payslipLines      PayslipLine[]
   createdAt         DateTime           @default(now()) @db.Timestamptz(3)
   updatedAt         DateTime           @updatedAt @db.Timestamptz(3)
 
@@ -228,6 +238,7 @@ model Contract {
   department      Department      @relation(fields: [departmentId], references: [id], onDelete: Restrict)
   workingSchedule WorkingSchedule? @relation(fields: [workingScheduleId], references: [id], onDelete: Restrict)
   salaryStructure SalaryStructure @relation(fields: [salaryStructureId], references: [id], onDelete: Restrict)
+  payslips        Payslip[]
 
   @@index([employeeId, startDate, endDate])
   @@index([departmentId])
@@ -392,5 +403,165 @@ model TimeOffRequest {
   @@index([status, startDate])
 }
 
+// ── Payroll Models ─────────────────────────────────────────────────
 
+enum PayrollStatus {
+  DRAFT
+  COMPUTED
+  VALIDATED
+  PAID
+}
 
+enum PayrollWarningStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum PayrollWarningType {
+  MISSING_ATTENDANCE
+  OPEN_ATTENDANCE_RECORD
+  ATTENDANCE_TIME_OFF_CONFLICT
+  ATTENDANCE_SCHEDULE_MISMATCH
+  MISSING_BANK_DETAILS
+}
+
+model Payrun {
+  id                  String           @id @default(uuid())
+  payrunNumber        String           @unique
+  name                String
+  salaryStructureId   String
+  salaryStructureName String
+  periodStart         DateTime         @db.Date
+  periodEnd           DateTime         @db.Date
+  currency            String
+  status              PayrollStatus    @default(DRAFT)
+  createdByUserId     String
+  computedByUserId    String?
+  computedAt          DateTime?        @db.Timestamptz(3)
+  validatedByUserId   String?
+  validatedAt         DateTime?        @db.Timestamptz(3)
+  paidByUserId        String?
+  paidAt              DateTime?        @db.Timestamptz(3)
+  salaryStructure     SalaryStructure  @relation(fields: [salaryStructureId], references: [id], onDelete: Restrict)
+  createdByUser       User             @relation("PayrunCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
+  computedByUser      User?            @relation("PayrunComputer", fields: [computedByUserId], references: [id], onDelete: Restrict)
+  validatedByUser     User?            @relation("PayrunValidator", fields: [validatedByUserId], references: [id], onDelete: Restrict)
+  paidByUser          User?            @relation("PayrunPayer", fields: [paidByUserId], references: [id], onDelete: Restrict)
+  payslips            Payslip[]
+  warnings            PayrollWarning[]
+  createdAt           DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime         @updatedAt @db.Timestamptz(3)
+
+  @@index([periodStart, periodEnd])
+  @@index([salaryStructureId, status])
+  @@index([status, createdAt])
+}
+
+model Payslip {
+  id                      String           @id @default(uuid())
+  payrunId                String
+  employeeId              String
+  contractId              String
+  salaryStructureId       String
+  periodStart             DateTime         @db.Date
+  periodEnd               DateTime         @db.Date
+  status                  PayrollStatus    @default(DRAFT)
+  employeeNumberSnapshot  String?
+  employeeNameSnapshot    String?
+  workEmailSnapshot       String?
+  departmentNameSnapshot  String?
+  jobPositionSnapshot     String?
+  contractNumberSnapshot  String?
+  structureNameSnapshot   String?
+  scheduleIdSnapshot      String?
+  scheduleNameSnapshot    String?
+  bankAccountNameSnapshot String?
+  bankAccountMaskSnapshot String?
+  bankNameSnapshot        String?
+  bankIfscSnapshot        String?
+  monthlyWage             Decimal?         @db.Decimal(18, 2)
+  expectedDays            Int?
+  workedDays              Int?
+  expectedMinutes         Int?
+  workedMinutes           Int?
+  overtimeMinutes         Int?
+  proratedBasic           Decimal?         @db.Decimal(18, 2)
+  basicAmount             Decimal?         @db.Decimal(18, 2)
+  allowanceAmount         Decimal?         @db.Decimal(18, 2)
+  overtimeAmount          Decimal?         @db.Decimal(18, 2)
+  deductionAmount         Decimal?         @db.Decimal(18, 2)
+  contributionAmount      Decimal?         @db.Decimal(18, 2)
+  grossAmount             Decimal?         @db.Decimal(18, 2)
+  netAmount               Decimal?         @db.Decimal(18, 2)
+  computationInputHash    String?
+  finalPdf                Bytes?
+  finalPdfSha256          String?
+  payrun                  Payrun           @relation(fields: [payrunId], references: [id], onDelete: Restrict)
+  employee                Employee         @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  contract                Contract         @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  salaryStructure         SalaryStructure  @relation(fields: [salaryStructureId], references: [id], onDelete: Restrict)
+  lines                   PayslipLine[]
+  warnings                PayrollWarning[]
+  createdAt               DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt               DateTime         @updatedAt @db.Timestamptz(3)
+
+  @@unique([payrunId, employeeId])
+  @@unique([employeeId, periodStart, periodEnd])
+  @@index([payrunId, status])
+  @@index([employeeId, periodStart, periodEnd])
+  @@index([departmentNameSnapshot])
+}
+
+model PayslipLine {
+  id           String             @id @default(uuid())
+  payslipId    String
+  salaryRuleId String
+  name         String
+  code         String
+  category     SalaryRuleCategory
+  sequence     Int
+  method       SalaryRuleMethod
+  amount       Decimal            @db.Decimal(18, 2)
+  payslip      Payslip            @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+  salaryRule   SalaryRule         @relation(fields: [salaryRuleId], references: [id], onDelete: Restrict)
+  createdAt    DateTime           @default(now()) @db.Timestamptz(3)
+
+  @@unique([payslipId, code])
+  @@unique([payslipId, sequence])
+  @@index([payslipId, category, sequence])
+}
+
+model PayrollWarning {
+  id                    String               @id @default(uuid())
+  payrunId              String
+  payslipId             String?
+  type                  PayrollWarningType
+  status                PayrollWarningStatus @default(OPEN)
+  message               String
+  blocking              Boolean
+  acknowledgeable       Boolean
+  details               Json?
+  acknowledgedByUserId  String?
+  acknowledgedAt        DateTime?            @db.Timestamptz(3)
+  acknowledgementReason String?
+  resolvedAt            DateTime?            @db.Timestamptz(3)
+  payrun                Payrun               @relation(fields: [payrunId], references: [id], onDelete: Cascade)
+  payslip               Payslip?             @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+  acknowledgedByUser    User?                @relation("WarningAcknowledger", fields: [acknowledgedByUserId], references: [id], onDelete: Restrict)
+  createdAt             DateTime             @default(now()) @db.Timestamptz(3)
+  updatedAt             DateTime             @updatedAt @db.Timestamptz(3)
+
+  @@index([payrunId, status, blocking])
+  @@index([payslipId, status])
+  @@index([type, status])
+}
+
+model Session {
+  sid    String   @id @map("sid")
+  sess   Json     @map("sess")
+  expire DateTime @db.Timestamptz(6) @map("expire")
+
+  @@index([expire], map: "IDX_session_expire")
+  @@map("session")
+}

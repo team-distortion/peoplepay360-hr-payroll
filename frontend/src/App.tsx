@@ -24,6 +24,12 @@ import SalaryStructuresPage from './pages/payroll/SalaryStructures';
 import SalaryStructureDetailPage from './pages/payroll/SalaryStructureDetail';
 import SalaryRulesPage from './pages/payroll/SalaryRules';
 import SalaryRuleDetailPage from './pages/payroll/SalaryRuleDetail';
+import AppLayout from './components/layout/AppLayout';
+import PayrunList from './components/payroll/PayrunList';
+import NewPayrunWizard from './components/payroll/NewPayrunWizard';
+import PayrunDetail from './components/payroll/PayrunDetail';
+import PayslipList from './components/payroll/PayslipList';
+import PayslipDetail from './components/payroll/PayslipDetail';
 
 function CanvasFlow() {
   return (
@@ -289,13 +295,68 @@ function App() {
           />
 
           <Route
+            path="/payroll/payruns"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER']}>
+                <AppLayout>
+                  <PayrunList />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/payroll/payruns/new"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER']}>
+                <AppLayout>
+                  <NewPayrunWizard />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/payroll/payruns/:id"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER']}>
+                <AppLayout>
+                  <PayrunDetail />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/payroll/payslips"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER']}>
+                <AppLayout>
+                  <PayslipList />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/payroll/payslips/:id"
+            element={
+              <ProtectedRoute allowedRoles={['ADMIN', 'HR_PAYROLL_USER', 'HR_PAYROLL_MANAGER']}>
+                <AppLayout>
+                  <PayslipDetail />
+                </AppLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/payroll"
-            element={<Navigate to="/payroll/structures" replace />}
+            element={<Navigate to="/payroll/payruns" replace />}
           />
 
           <Route
             path="/payroll/*"
-            element={<Navigate to="/payroll/structures" replace />}
+            element={<Navigate to="/payroll/payruns" replace />}
           />
 
           <Route path="*" element={<Navigate to="/dashboard" replace />} />

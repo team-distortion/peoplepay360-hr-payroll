@@ -9,7 +9,7 @@ export default defineConfig({
       NODE_ENV: 'test',
       DATABASE_URL:
         process.env.TEST_DATABASE_URL ||
-        'postgresql://peoplepay360:peoplepay360@localhost:5432/peoplepay360?schema=test',
+        'postgresql://peoplepay360:peoplepay360@localhost:5433/peoplepay360?schema=test',
     },
   },
 });
