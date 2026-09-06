@@ -1,399 +1,521 @@
-import { useState, useMemo } from 'react';
-import { Plus, Search, ArrowLeft, Info } from 'lucide-react';
+import { useState } from 'react';
+import {
+  Plus,
+  Search,
+  X,
+  Layers,
+  Edit2,
+  Power,
+  Loader2,
+  AlertCircle,
+} from 'lucide-react';
 import AppLayout from '../../components/layout/AppLayout';
-
-export interface TimeOffType {
-  id: string;
-  name: string;
-  unit: 'Days' | 'Hours';
-  requiresAllocation: boolean;
-  approvalRole: string;
-  status: 'Active' | 'Inactive';
-  payrollWorkEntry: string;
-  displayColor: string;
-}
-
-const INITIAL_TYPES: TimeOffType[] = [
-  {
-    id: 'TOT-001',
-    name: 'Paid Time Off',
-    unit: 'Days',
-    requiresAllocation: true,
-    approvalRole: 'Manager',
-    status: 'Active',
-    payrollWorkEntry: 'Leave Work Entry',
-    displayColor: 'blue',
-  },
-  {
-    id: 'TOT-002',
-    name: 'Sick Leave',
-    unit: 'Days',
-    requiresAllocation: false,
-    approvalRole: 'Manager',
-    status: 'Active',
-    payrollWorkEntry: 'Sick Leave Entry',
-    displayColor: 'red',
-  },
-  {
-    id: 'TOT-003',
-    name: 'Comp Off',
-    unit: 'Hours',
-    requiresAllocation: true,
-    approvalRole: 'Officer',
-    status: 'Active',
-    payrollWorkEntry: 'Comp Off Entry',
-    displayColor: 'emerald',
-  }
-];
-
-const COLORS = [
-  { label: 'Blue', value: 'blue', hex: '#3b82f6' },
-  { label: 'Emerald', value: 'emerald', hex: '#10b981' },
-  { label: 'Red', value: 'red', hex: '#ef4444' },
-  { label: 'Amber', value: 'amber', hex: '#f59e0b' },
-  { label: 'Purple', value: 'purple', hex: '#8b5cf6' },
-];
+import { useAuth } from '@/context/AuthContext';
+import {
+  useTimeOffTypes,
+  useCreateTimeOffTypeMutation,
+  useUpdateTimeOffTypeMutation,
+  useToggleTimeOffTypeStatusMutation,
+} from '../../features/time-off/time-off.queries';
+import type {
+  TimeOffTypeListItemDto,
+  TimeOffTypeInput,
+  TimeOffUnit,
+  TimeOffApprovalMode,
+  TimeOffPayrollTreatment,
+} from '@peoplepay360/shared';
 
 export default function TimeOffTypes() {
-  const [types, setTypes] = useState<TimeOffType[]>(INITIAL_TYPES);
+  const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedTypeId, setSelectedTypeId] = useState<string | null | undefined>(undefined);
-  const [formType, setFormType] = useState<TimeOffType | null>(null);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [unitFilter, setUnitFilter] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [allocationFilter, setAllocationFilter] = useState<string>('');
 
-  const filteredTypes = useMemo(() => {
-    if (!searchQuery) return types;
-    const q = searchQuery.toLowerCase();
-    return types.filter(t => t.name.toLowerCase().includes(q) || t.approvalRole.toLowerCase().includes(q));
-  }, [types, searchQuery]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingType, setEditingType] = useState<TimeOffTypeListItemDto | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  const handleOpenDetail = (id: string | null) => {
-    if (id === null) {
-      setFormType({
-        id: `TOT-NEW-${Date.now()}`,
-        name: '',
-        unit: 'Days',
-        requiresAllocation: true,
-        approvalRole: 'Manager',
-        status: 'Active',
-        payrollWorkEntry: '',
-        displayColor: 'blue'
+  // Form State
+  const [formData, setFormData] = useState<TimeOffTypeInput>({
+    name: '',
+    description: null,
+    unit: 'DAY',
+    requiresAllocation: true,
+    approvalMode: 'HR_APPROVAL',
+    payrollTreatment: 'PAID',
+    status: 'ACTIVE',
+  });
+
+  const isHrOrAdmin =
+    user?.role === 'ADMIN' ||
+    user?.role === 'HR_MANAGER' ||
+    user?.role === 'HR_PAYROLL_MANAGER' ||
+    user?.role === 'HR_PAYROLL_USER';
+
+  const { data, isLoading, error } = useTimeOffTypes({
+    search: searchQuery || undefined,
+    unit: (unitFilter as TimeOffUnit) || undefined,
+    status: (statusFilter as 'ACTIVE' | 'INACTIVE') || undefined,
+    requiresAllocation: allocationFilter ? allocationFilter === 'true' : undefined,
+    pageSize: 50,
+  });
+
+  const createMutation = useCreateTimeOffTypeMutation();
+  const updateMutation = useUpdateTimeOffTypeMutation();
+  const toggleStatusMutation = useToggleTimeOffTypeStatusMutation();
+
+  const handleOpenCreate = () => {
+    setEditingType(null);
+    setFormData({
+      name: '',
+      description: null,
+      unit: 'DAY',
+      requiresAllocation: true,
+      approvalMode: 'HR_APPROVAL',
+      payrollTreatment: 'PAID',
+      status: 'ACTIVE',
+    });
+    setFormError(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEdit = (type: TimeOffTypeListItemDto) => {
+    setEditingType(type);
+    setFormData({
+      name: type.name,
+      description: type.description,
+      unit: type.unit,
+      requiresAllocation: type.requiresAllocation,
+      approvalMode: type.approvalMode,
+      payrollTreatment: type.payrollTreatment,
+      status: type.status as 'ACTIVE' | 'INACTIVE',
+    });
+    setFormError(null);
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setFormError(null);
+
+    if (!formData.name.trim()) {
+      setFormError('Type name is required');
+      return;
+    }
+
+    try {
+      if (editingType) {
+        await updateMutation.mutateAsync({
+          id: editingType.id,
+          input: formData,
+        });
+      } else {
+        await createMutation.mutateAsync(formData);
+      }
+      setIsModalOpen(false);
+    } catch (err: any) {
+      setFormError(err.message || 'Failed to save time off type');
+    }
+  };
+
+  const handleToggleStatus = async (type: TimeOffTypeListItemDto) => {
+    const newStatus = type.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+    try {
+      await toggleStatusMutation.mutateAsync({
+        id: type.id,
+        status: newStatus,
       });
-      setIsEditMode(true);
-    } else {
-      const found = types.find(t => t.id === id);
-      if (found) setFormType({ ...found });
-      setIsEditMode(false);
+    } catch (err: any) {
+      alert(err.message || 'Failed to update status');
     }
-    setSelectedTypeId(id);
-  };
-
-  const handleCloseDetail = () => {
-    setSelectedTypeId(undefined);
-    setFormType(null);
-    setIsEditMode(false);
-  };
-
-  const handleSaveType = () => {
-    if (!formType) return;
-    if (selectedTypeId === null) {
-      setTypes([formType, ...types]);
-    } else {
-      setTypes(types.map(t => t.id === formType.id ? formType : t));
-    }
-    setIsEditMode(false);
-    // Note: To mimic real behavior, we just switch out of edit mode instead of closing
   };
 
   return (
     <AppLayout>
-      {selectedTypeId !== undefined && formType ? (
-        // FORM VIEW
-        <div className="flex-1 flex flex-col bg-surface/30 animate-in fade-in slide-in-from-right-4 duration-300">
-          <div className="px-8 py-6 bg-white border-b border-border sticky top-0 z-10 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={handleCloseDetail}
-                className="p-2 hover:bg-surface rounded-full text-brandAccent transition-colors flex items-center justify-center group"
-              >
-                <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-              </button>
-              <div className="flex flex-col">
-                <span className="text-xs text-mutedText font-medium mb-0.5">Time Off Type / {formType.name || 'New Type'}</span>
-                <h2 className="text-2xl font-display font-bold text-navy">
-                  {formType.name || 'New Type'}
-                </h2>
-              </div>
+      <div className="flex-1 flex flex-col bg-surface/30 p-6 md:p-8 animate-in fade-in duration-500">
+        <div className="max-w-6xl mx-auto w-full space-y-6">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-display font-bold text-navy tracking-tight">
+                Time Off Types
+              </h1>
+              <p className="text-slate mt-1 text-base">
+                Configure leave policies, unit accounting, and approval requirements.
+              </p>
             </div>
-            
-            <div className="flex items-center gap-3">
-              {isEditMode ? (
-                <>
-                  <button 
-                    onClick={() => {
-                      if (selectedTypeId === null) handleCloseDetail();
-                      else {
-                        const original = types.find(t => t.id === selectedTypeId);
-                        if (original) setFormType({...original});
-                        setIsEditMode(false);
-                      }
-                    }}
-                    className="px-4 py-2 text-sm font-medium text-slate hover:text-navy transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={handleSaveType}
-                    className="px-6 py-2 bg-brandAccent hover:bg-[#4a44cc] text-white text-sm font-medium rounded-full transition-all shadow-sm"
-                  >
-                    Save
-                  </button>
-                </>
-              ) : (
-                <button 
-                  onClick={() => setIsEditMode(true)}
-                  className="px-6 py-2 border border-brandAccent text-brandAccent hover:bg-brandAccent/5 text-sm font-medium rounded-full transition-all shadow-sm"
-                >
-                  EDIT
-                </button>
-              )}
-            </div>
-          </div>
 
-          <div className="flex-1 overflow-auto p-8">
-            <div className="max-w-4xl mx-auto space-y-8">
-              
-              <div className={`bg-white rounded-2xl border border-border p-8 shadow-sm transition-all duration-300 ${isEditMode ? 'ring-1 ring-brandAccent/20' : ''}`}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
-                  {/* Left Column */}
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-semibold text-navy mb-1.5">Type Name</label>
-                      {isEditMode ? (
-                        <input 
-                          type="text" 
-                          value={formType.name}
-                          onChange={(e) => setFormType({...formType, name: e.target.value})}
-                          className="w-full bg-white border border-border rounded-lg px-3 py-2 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-brandAccent/20 focus:border-brandAccent transition-all animate-in fade-in"
-                        />
-                      ) : (
-                        <div className="text-sm text-slate py-2">{formType.name}</div>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-semibold text-navy mb-1.5">Unit</label>
-                      {isEditMode ? (
-                        <select 
-                          value={formType.unit}
-                          onChange={(e) => setFormType({...formType, unit: e.target.value as 'Days'|'Hours'})}
-                          className="w-full bg-white border border-border rounded-lg px-3 py-2 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-brandAccent/20 focus:border-brandAccent transition-all animate-in fade-in"
-                        >
-                          <option value="Days">Days</option>
-                          <option value="Hours">Hours</option>
-                        </select>
-                      ) : (
-                        <div className="text-sm text-slate py-2">{formType.unit}</div>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-navy mb-1.5">Requires Allocation</label>
-                      {isEditMode ? (
-                        <select 
-                          value={formType.requiresAllocation ? "true" : "false"}
-                          onChange={(e) => setFormType({...formType, requiresAllocation: e.target.value === "true"})}
-                          className="w-full bg-white border border-border rounded-lg px-3 py-2 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-brandAccent/20 focus:border-brandAccent transition-all animate-in fade-in"
-                        >
-                          <option value="true">Yes</option>
-                          <option value="false">No</option>
-                        </select>
-                      ) : (
-                        <div className="text-sm text-slate py-2">{formType.requiresAllocation ? "Yes" : "No"}</div>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-semibold text-navy mb-1.5">Active</label>
-                      {isEditMode ? (
-                        <select 
-                          value={formType.status}
-                          onChange={(e) => setFormType({...formType, status: e.target.value as 'Active'|'Inactive'})}
-                          className="w-full bg-white border border-border rounded-lg px-3 py-2 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-brandAccent/20 focus:border-brandAccent transition-all animate-in fade-in"
-                        >
-                          <option value="Active">Active</option>
-                          <option value="Inactive">Inactive</option>
-                        </select>
-                      ) : (
-                        <div className="text-sm text-slate py-2">{formType.status === 'Active' ? 'True' : 'False'}</div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Right Column */}
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-semibold text-navy mb-1.5">Approval Role</label>
-                      {isEditMode ? (
-                        <select 
-                          value={formType.approvalRole}
-                          onChange={(e) => setFormType({...formType, approvalRole: e.target.value})}
-                          className="w-full bg-white border border-border rounded-lg px-3 py-2 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-brandAccent/20 focus:border-brandAccent transition-all animate-in fade-in"
-                        >
-                          <option value="Manager">Manager</option>
-                          <option value="Officer">Officer</option>
-                          <option value="HR">HR</option>
-                        </select>
-                      ) : (
-                        <div className="text-sm text-slate py-2">{formType.approvalRole}</div>
-                      )}
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-semibold text-navy mb-1.5">Payroll / Work Entry</label>
-                      {isEditMode ? (
-                        <input 
-                          type="text" 
-                          value={formType.payrollWorkEntry}
-                          onChange={(e) => setFormType({...formType, payrollWorkEntry: e.target.value})}
-                          className="w-full bg-white border border-border rounded-lg px-3 py-2 text-sm text-navy focus:outline-none focus:ring-2 focus:ring-brandAccent/20 focus:border-brandAccent transition-all animate-in fade-in"
-                        />
-                      ) : (
-                        <div className="text-sm text-slate py-2">{formType.payrollWorkEntry}</div>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-semibold text-navy mb-1.5">Display Color</label>
-                      {isEditMode ? (
-                        <div className="flex gap-2 pt-1 animate-in fade-in">
-                          {COLORS.map(c => (
-                            <button
-                              key={c.value}
-                              onClick={() => setFormType({...formType, displayColor: c.value})}
-                              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 ${formType.displayColor === c.value ? 'ring-2 ring-offset-2 ring-navy scale-105' : 'hover:scale-110'}`}
-                              style={{ backgroundColor: c.hex }}
-                              title={c.label}
-                            />
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="py-2 flex items-center gap-2">
-                          <div 
-                            className="w-4 h-4 rounded-full" 
-                            style={{ backgroundColor: COLORS.find(c => c.value === formType.displayColor)?.hex || '#ccc' }} 
-                          />
-                          <span className="text-sm text-slate capitalize">{formType.displayColor}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Configuration Notes */}
-              <div className="bg-surface/50 border border-border p-6 rounded-2xl flex gap-4">
-                <Info className="text-brandAccent shrink-0 mt-0.5" size={20} />
-                <div>
-                  <h4 className="font-semibold text-navy mb-1">Configuration Notes</h4>
-                  <p className="text-sm text-slate">
-                    Time Off Type drives approval behavior and whether a request needs an allocation. Editing these settings changes behavior for every future request of this type.
-                  </p>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </div>
-      ) : (
-        // LIST VIEW
-        <div className="flex-1 flex flex-col bg-surface/30 animate-in fade-in duration-500">
-          <div className="px-8 py-6 bg-white border-b border-border flex flex-col gap-4">
-            <div className="flex items-center gap-4">
-              <button 
-                onClick={() => handleOpenDetail(null)}
-                className="flex items-center gap-2 px-4 py-2 bg-brandAccent hover:bg-[#4a44cc] text-white font-medium rounded-full transition-all shadow-sm hover:shadow-md"
+            {isHrOrAdmin && (
+              <button
+                onClick={handleOpenCreate}
+                className="px-4 py-2 bg-accent hover:bg-accent/90 text-white text-sm font-semibold rounded-xl shadow-xs transition-colors flex items-center gap-2"
               >
                 <Plus size={16} />
                 <span>New Type</span>
               </button>
-              <div className="flex flex-col">
-                <h1 className="text-3xl font-display font-bold text-navy tracking-tight">Time Off Types</h1>
-                <p className="text-sm text-mutedText mt-1">List view opened from Time Off ▼ → Time Off Types</p>
-              </div>
+            )}
+          </div>
+
+          {/* Filter Bar */}
+          <div className="bg-white p-4 rounded-2xl border border-border shadow-xs flex flex-col md:flex-row gap-4 items-stretch md:items-center justify-between">
+            <div className="relative flex-1">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate/60 w-4 h-4" />
+              <input
+                type="text"
+                placeholder="Search types by name..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-surface/50 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                value={unitFilter}
+                onChange={(e) => setUnitFilter(e.target.value)}
+                className="px-3 py-2 bg-surface/50 border border-border rounded-xl text-xs font-semibold text-navy focus:outline-none"
+              >
+                <option value="">All Units</option>
+                <option value="DAY">Days</option>
+                <option value="HOUR">Hours</option>
+              </select>
+
+              <select
+                value={allocationFilter}
+                onChange={(e) => setAllocationFilter(e.target.value)}
+                className="px-3 py-2 bg-surface/50 border border-border rounded-xl text-xs font-semibold text-navy focus:outline-none"
+              >
+                <option value="">All Allocation Rules</option>
+                <option value="true">Requires Allocation</option>
+                <option value="false">No Allocation Needed</option>
+              </select>
+
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="px-3 py-2 bg-surface/50 border border-border rounded-xl text-xs font-semibold text-navy focus:outline-none"
+              >
+                <option value="">All Statuses</option>
+                <option value="ACTIVE">Active</option>
+                <option value="INACTIVE">Inactive</option>
+              </select>
             </div>
           </div>
 
-          <div className="p-8 flex-1 flex flex-col max-w-6xl mx-auto w-full">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="relative w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-mutedText" size={16} />
-                <input 
-                  type="text" 
-                  placeholder="Search time off types..." 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-white border border-border rounded-full focus:outline-none focus:ring-2 focus:ring-brandAccent/20 focus:border-brandAccent transition-all text-sm text-navy placeholder:text-mutedText shadow-sm"
-                />
+          {/* Main Content */}
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="w-8 h-8 text-accent animate-spin" />
+              <span className="ml-3 text-slate font-medium text-sm">Loading types...</span>
+            </div>
+          ) : error ? (
+            <div className="p-6 bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 flex items-center gap-3">
+              <AlertCircle size={20} className="shrink-0" />
+              <div>
+                <p className="font-semibold text-sm">Failed to load time off types</p>
+                <p className="text-xs opacity-90">{(error as any)?.message || 'An unexpected error occurred'}</p>
               </div>
             </div>
-
-            <div className="bg-white border border-border rounded-2xl overflow-hidden shadow-sm flex-1">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-border bg-surface text-xs uppercase tracking-wider text-mutedText font-semibold">
-                    <th className="px-6 py-4">Type</th>
-                    <th className="px-6 py-4">Unit</th>
-                    <th className="px-6 py-4">Allocation</th>
-                    <th className="px-6 py-4">Approval</th>
-                    <th className="px-6 py-4">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm text-navy divide-y divide-border">
-                  {filteredTypes.map((type) => (
-                    <tr 
-                      key={type.id}
-                      onClick={() => handleOpenDetail(type.id)}
-                      className="cursor-pointer transition-colors duration-200 hover:bg-surface/50 group"
-                    >
-                      <td className="px-6 py-4 font-medium flex items-center gap-2">
-                        <div 
-                          className="w-2.5 h-2.5 rounded-full" 
-                          style={{ backgroundColor: COLORS.find(c => c.value === type.displayColor)?.hex || '#ccc' }} 
-                        />
-                        <span className="group-hover:text-brandAccent transition-colors">{type.name}</span>
-                      </td>
-                      <td className="px-6 py-4 text-slate">{type.unit}</td>
-                      <td className="px-6 py-4 text-slate">{type.requiresAllocation ? 'Required' : 'No'}</td>
-                      <td className="px-6 py-4 text-slate">{type.approvalRole}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                          type.status === 'Active' 
-                            ? 'border-success text-success bg-success/10' 
-                            : 'border-mutedText text-mutedText bg-surface'
-                        }`}>
+          ) : !data?.items?.length ? (
+            <div className="bg-white rounded-2xl border border-border p-12 text-center text-slate shadow-xs">
+              <Layers className="w-12 h-12 mx-auto text-slate/30 mb-3" />
+              <h3 className="text-base font-bold text-navy">No Time Off Types Found</h3>
+              <p className="text-xs text-slate mt-1 max-w-sm mx-auto">
+                No leave types match your current search criteria. Click "New Type" to create one.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {data.items.map((type) => (
+                <div
+                  key={type.id}
+                  className="bg-white rounded-2xl border border-border shadow-xs hover:border-accent/40 hover:shadow-md transition-all p-5 flex flex-col justify-between"
+                >
+                  <div>
+                    {/* Card Top */}
+                    <div className="flex items-start justify-between gap-3 mb-2">
+                      <div className="min-w-0">
+                        <h3 className="text-base font-bold text-navy truncate" title={type.name}>
+                          {type.name}
+                        </h3>
+                        <span
+                          className={`inline-block mt-1 px-2 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider ${
+                            type.status === 'ACTIVE'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}
+                        >
                           {type.status}
                         </span>
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredTypes.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-slate">
-                        No time off types found.
-                      </td>
-                    </tr>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className="px-2 py-1 text-xs font-mono font-bold rounded-lg bg-surface border border-border text-navy">
+                          {type.unit}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <p className="text-xs text-slate line-clamp-2 mt-2 min-h-[32px]">
+                      {type.description || 'No description provided.'}
+                    </p>
+
+                    {/* Meta Badges */}
+                    <div className="mt-4 space-y-2 pt-3 border-t border-border/60">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate">Allocation:</span>
+                        <span
+                          className={`font-semibold ${
+                            type.requiresAllocation ? 'text-navy' : 'text-slate-500'
+                          }`}
+                        >
+                          {type.requiresAllocation ? 'Required' : 'Optional / None'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate">Approval Mode:</span>
+                        <span className="font-semibold text-navy">
+                          {type.approvalMode === 'NO_APPROVAL' ? 'Auto Approved' : 'HR Approval'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate">Payroll Treatment:</span>
+                        <span
+                          className={`font-semibold ${
+                            type.payrollTreatment === 'PAID' ? 'text-emerald-600' : 'text-amber-600'
+                          }`}
+                        >
+                          {type.payrollTreatment === 'PAID' ? 'Paid Leave' : 'Unpaid Leave'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs pt-1">
+                        <span className="text-slate">Usage:</span>
+                        <span className="font-mono text-[11px] text-slate font-medium">
+                          {type.activeAllocationsCount} alloc · {type.activeRequestsCount} req
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  {isHrOrAdmin && (
+                    <div className="mt-5 pt-3 border-t border-border flex items-center justify-between">
+                      <button
+                        onClick={() => handleToggleStatus(type)}
+                        disabled={toggleStatusMutation.isPending}
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5 ${
+                          type.status === 'ACTIVE'
+                            ? 'border-red-200 text-red-600 hover:bg-red-50'
+                            : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                        }`}
+                      >
+                        <Power size={13} />
+                        <span>{type.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleOpenEdit(type)}
+                        className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-surface text-navy hover:bg-surface/80 border border-border transition-colors flex items-center gap-1.5"
+                      >
+                        <Edit2 size={13} />
+                        <span>Edit</span>
+                      </button>
+                    </div>
                   )}
-                </tbody>
-              </table>
+                </div>
+              ))}
             </div>
-            
-            <p className="mt-4 text-sm text-mutedText text-center">
-              Useful note: this list defines policy rules, not employee transactions.
-            </p>
-          </div>
+          )}
         </div>
-      )}
+
+        {/* Modal for Create/Edit */}
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-navy/40 backdrop-blur-xs animate-in fade-in">
+            <div className="bg-white w-full max-w-lg rounded-2xl border border-border shadow-xl overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="p-6 border-b border-border flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-navy">
+                    {editingType ? 'Edit Time Off Type' : 'Create Time Off Type'}
+                  </h3>
+                  <p className="text-xs text-slate mt-0.5">
+                    Define leave calculation, unit, and approval mode.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="p-1 rounded-lg text-slate hover:bg-surface transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSave} className="p-6 space-y-4 overflow-y-auto flex-1">
+                {formError && (
+                  <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
+                    <AlertCircle size={15} className="shrink-0" />
+                    <span>{formError}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-navy mb-1">
+                    Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="e.g. Annual Leave, Sick Leave"
+                    className="w-full px-3 py-2 bg-surface/40 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-navy mb-1">Description</label>
+                  <textarea
+                    rows={2}
+                    value={formData.description || ''}
+                    onChange={(e) =>
+                      setFormData({ ...formData, description: e.target.value || null })
+                    }
+                    placeholder="Explain the policy and guidelines..."
+                    className="w-full px-3 py-2 bg-surface/40 border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent resize-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-navy mb-1">
+                      Unit <span className="text-rose-500">*</span>
+                    </label>
+                    <select
+                      value={formData.unit}
+                      disabled={Boolean(editingType && editingType.activeAllocationsCount > 0)}
+                      onChange={(e) =>
+                        setFormData({ ...formData, unit: e.target.value as TimeOffUnit })
+                      }
+                      className="w-full px-3 py-2 bg-surface/40 border border-border rounded-xl text-sm font-semibold text-navy focus:outline-none disabled:opacity-60 disabled:cursor-not-allowed"
+                    >
+                      <option value="DAY">DAY (Whole Days)</option>
+                      <option value="HOUR">HOUR (15-min increments)</option>
+                    </select>
+                    {editingType && editingType.activeAllocationsCount > 0 && (
+                      <p className="text-[11px] text-amber-600 mt-1">
+                        Unit locked: allocations exist for this type.
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-navy mb-1">
+                      Payroll Treatment
+                    </label>
+                    <select
+                      value={formData.payrollTreatment}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          payrollTreatment: e.target.value as TimeOffPayrollTreatment,
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-surface/40 border border-border rounded-xl text-sm font-semibold text-navy focus:outline-none"
+                    >
+                      <option value="PAID">PAID (Standard Pay)</option>
+                      <option value="UNPAID">UNPAID (Leave Without Pay)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-navy mb-1">
+                      Approval Mode
+                    </label>
+                    <select
+                      value={formData.approvalMode}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          approvalMode: e.target.value as TimeOffApprovalMode,
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-surface/40 border border-border rounded-xl text-sm font-semibold text-navy focus:outline-none"
+                    >
+                      <option value="HR_APPROVAL">HR Approval Required</option>
+                      <option value="NO_APPROVAL">No Approval (Auto Approved)</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-navy mb-1">Status</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          status: e.target.value as 'ACTIVE' | 'INACTIVE',
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-surface/40 border border-border rounded-xl text-sm font-semibold text-navy focus:outline-none"
+                    >
+                      <option value="ACTIVE">ACTIVE</option>
+                      <option value="INACTIVE">INACTIVE</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={formData.requiresAllocation}
+                      onChange={(e) =>
+                        setFormData({ ...formData, requiresAllocation: e.target.checked })
+                      }
+                      className="rounded border-border text-accent focus:ring-accent w-4 h-4"
+                    />
+                    <div>
+                      <span className="text-xs font-semibold text-navy block">
+                        Requires Allocation
+                      </span>
+                      <span className="text-[11px] text-slate block">
+                        If checked, employees must have an approved, active balance allocation
+                        before requesting this leave.
+                      </span>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="pt-4 border-t border-border flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsModalOpen(false)}
+                    className="px-4 py-2 border border-border rounded-xl text-xs font-semibold text-slate hover:bg-surface transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={createMutation.isPending || updateMutation.isPending}
+                    className="px-5 py-2 bg-accent hover:bg-accent/90 text-white rounded-xl text-xs font-semibold shadow-xs transition-colors flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {(createMutation.isPending || updateMutation.isPending) && (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    )}
+                    <span>{editingType ? 'Save Changes' : 'Create Type'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
     </AppLayout>
   );
 }

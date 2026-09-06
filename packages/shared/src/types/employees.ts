@@ -101,6 +101,8 @@ export interface EmployeeDetailDto extends EmployeeListItemDto {
   user: EmployeeLinkedUserSummary | null;
   contractCount?: number;
   attendanceCount?: number;
+  timeOffRequestCount?: number;
+  timeOffAllocationCount?: number;
   createdAt: string;
   updatedAt: string;
 }
