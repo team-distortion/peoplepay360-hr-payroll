@@ -97,14 +97,16 @@ export default function TopNav() {
 
         {/* Navigation Links */}
         <nav className="flex items-center gap-1">
-          <Link
-            to="/dashboard"
-            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-              isDashboardActive ? 'bg-surface text-navy' : 'text-slate hover:bg-surface/50 hover:text-navy'
-            }`}
-          >
-            Dashboard
-          </Link>
+          {user?.role !== 'EMPLOYEE' && (
+            <Link
+              to="/dashboard"
+              className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                isDashboardActive ? 'bg-surface text-navy' : 'text-slate hover:bg-surface/50 hover:text-navy'
+              }`}
+            >
+              Dashboard
+            </Link>
+          )}
           <Dropdown
             label="Employees"
             active={isEmployeesActive || isSchedulesActive}

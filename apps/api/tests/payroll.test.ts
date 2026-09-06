@@ -38,10 +38,19 @@ describe('Payroll Processing API Integration Tests (Phase 8)', () => {
     await prisma.payslipLine.deleteMany({});
     await prisma.payslip.deleteMany({});
     await prisma.payrun.deleteMany({});
+    const testEmps = await prisma.employee.findMany({
+      where: { employeeNumber: { startsWith: 'TESTPAY' } },
+      select: { id: true },
+    });
+    const testEmpIds = testEmps.map((e) => e.id);
+    if (testEmpIds.length > 0) {
+      await prisma.attendance.deleteMany({ where: { employeeId: { in: testEmpIds } } });
+      await prisma.timeOffRequest.deleteMany({ where: { employeeId: { in: testEmpIds } } });
+      await prisma.contract.deleteMany({ where: { employeeId: { in: testEmpIds } } });
+      await prisma.employee.deleteMany({ where: { id: { in: testEmpIds } } });
+    }
+    await prisma.contract.deleteMany({ where: { contractNumber: { startsWith: 'CON/2026/999' } } });
     await prisma.auditLog.deleteMany({});
-    await prisma.contract.deleteMany({});
-    await prisma.attendance.deleteMany({});
-    await prisma.timeOffRequest.deleteMany({});
     await prisma.user.deleteMany({
       where: { email: { in: testUserEmails } },
     });
@@ -201,10 +210,10 @@ describe('Payroll Processing API Integration Tests (Phase 8)', () => {
 
     // 6. Setup Contracts covering 2026-03-01 to 2026-03-31
     const con1 = await prisma.contract.upsert({
-      where: { contractNumber: 'TESTCON/2026/001' },
+      where: { contractNumber: 'CON/2026/999001' },
       update: {},
       create: {
-        contractNumber: 'TESTCON/2026/001',
+        contractNumber: 'CON/2026/999001',
         employeeId: testEmployeeId1,
         departmentId: testDepartmentId,
         salaryStructureId: testStructureId,
@@ -217,10 +226,10 @@ describe('Payroll Processing API Integration Tests (Phase 8)', () => {
     testContractId1 = con1.id;
 
     const con2 = await prisma.contract.upsert({
-      where: { contractNumber: 'TESTCON/2026/002' },
+      where: { contractNumber: 'CON/2026/999002' },
       update: {},
       create: {
-        contractNumber: 'TESTCON/2026/002',
+        contractNumber: 'CON/2026/999002',
         employeeId: testEmployeeId2,
         departmentId: testDepartmentId,
         salaryStructureId: testStructureId,
@@ -240,7 +249,10 @@ describe('Payroll Processing API Integration Tests (Phase 8)', () => {
           workingScheduleId: testScheduleId,
           attendanceDate: new Date('2026-03-02'),
           status: 'PRESENT',
-          workedMinutes: 480,
+          checkInAt: new Date('2026-03-02T09:00:00Z'),
+          checkOutAt: new Date('2026-03-02T18:00:00Z'),
+          expectedMinutes: 480,
+          workedMinutes: 540,
           overtimeMinutes: 60,
         },
         {
@@ -248,6 +260,9 @@ describe('Payroll Processing API Integration Tests (Phase 8)', () => {
           workingScheduleId: testScheduleId,
           attendanceDate: new Date('2026-03-03'),
           status: 'PRESENT',
+          checkInAt: new Date('2026-03-03T09:00:00Z'),
+          checkOutAt: new Date('2026-03-03T17:00:00Z'),
+          expectedMinutes: 480,
           workedMinutes: 480,
           overtimeMinutes: 0,
         },
@@ -256,6 +271,9 @@ describe('Payroll Processing API Integration Tests (Phase 8)', () => {
           workingScheduleId: testScheduleId,
           attendanceDate: new Date('2026-03-02'),
           status: 'PRESENT',
+          checkInAt: new Date('2026-03-02T09:00:00Z'),
+          checkOutAt: new Date('2026-03-02T17:00:00Z'),
+          expectedMinutes: 480,
           workedMinutes: 480,
           overtimeMinutes: 0,
         },
@@ -299,10 +317,12 @@ describe('Payroll Processing API Integration Tests (Phase 8)', () => {
     await prisma.payslipLine.deleteMany({});
     await prisma.payslip.deleteMany({});
     await prisma.payrun.deleteMany({});
-    await prisma.contract.deleteMany({ where: { contractNumber: { startsWith: 'TESTCON/' } } });
+    await prisma.attendance.deleteMany({});
+    await prisma.contract.deleteMany({ where: { contractNumber: { startsWith: 'CON/2026/999' } } });
     await prisma.employee.deleteMany({ where: { employeeNumber: { startsWith: 'TESTPAY' } } });
     await prisma.salaryRule.deleteMany({ where: { salaryStructureId: testStructureId } });
     await prisma.salaryStructure.deleteMany({ where: { id: testStructureId } });
+    await prisma.auditLog.deleteMany({});
     await prisma.user.deleteMany({ where: { email: { in: testUserEmails } } });
     await pgPool.end();
   });

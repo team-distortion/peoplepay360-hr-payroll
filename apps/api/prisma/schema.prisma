@@ -471,6 +471,8 @@ model Payslip {
   employeeNameSnapshot    String?
   workEmailSnapshot       String?
   departmentNameSnapshot  String?
+  departmentIdSnapshot    String?
+  employeeTypeSnapshot    EmployeeType?
   jobPositionSnapshot     String?
   contractNumberSnapshot  String?
   structureNameSnapshot   String?
@@ -511,6 +513,8 @@ model Payslip {
   @@index([payrunId, status])
   @@index([employeeId, periodStart, periodEnd])
   @@index([departmentNameSnapshot])
+  @@index([status, periodStart, periodEnd])
+  @@index([departmentIdSnapshot, employeeTypeSnapshot, status])
 }
 
 model PayslipLine {

@@ -5,6 +5,7 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    fileParallelism: false,
     env: {
       NODE_ENV: 'test',
       DATABASE_URL:
