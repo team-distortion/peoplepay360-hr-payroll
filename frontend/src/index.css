@@ -58,6 +58,9 @@
 }
 
 @layer utilities {
+  .text-muted {
+    color: var(--muted-text) !important;
+  }
   .animate-card-glow {
     animation: card-glow 0.8s ease-out;
   }
